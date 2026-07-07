@@ -1,0 +1,205 @@
+<svg viewBox="0 0 1500 840" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrS" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2620a"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect width="1500" height="840" fill="#fbfcfe"/>
+  <text x="40" y="42" font-size="25" font-weight="700" fill="#0f172a">Bamboo Focus — Architecture &amp; Data Flow</text>
+  <text x="40" y="66" font-size="13" fill="#64748b">Edge camera watches posture &amp; desk clutter on-device · only compact JSON crosses the network · Qwen decides when and how to nudge</text>
+
+  <!-- ================= EDGE ================= -->
+  <rect x="30" y="100" width="290" height="490" rx="12" fill="#e9f6ef" stroke="#0e7c4a" stroke-width="1.5"/>
+  <text x="175" y="126" font-size="13" font-weight="700" fill="#0e7c4a" text-anchor="middle">EDGE DEVICE — Raspberry Pi / laptop webcam</text>
+  <text x="175" y="142" font-size="10.5" fill="#3f6f57" text-anchor="middle">pi_start.py + pi_edge/ · webcam_edge.py</text>
+
+  <rect x="55" y="156" width="240" height="48" rx="8" fill="#ffffff" stroke="#0e7c4a"/>
+  <text x="175" y="176" font-size="12.5" font-weight="600" fill="#14532d" text-anchor="middle">Camera</text>
+  <text x="175" y="192" font-size="10.5" fill="#527a63" text-anchor="middle">raw frames stay on device</text>
+
+  <rect x="55" y="238" width="240" height="76" rx="8" fill="#ffffff" stroke="#0e7c4a"/>
+  <text x="175" y="258" font-size="12.5" font-weight="600" fill="#14532d" text-anchor="middle">On-device detection</text>
+  <text x="175" y="275" font-size="10.5" fill="#527a63" text-anchor="middle">MediaPipe pose landmarks</text>
+  <text x="175" y="290" font-size="10.5" fill="#527a63" text-anchor="middle">TFLite EfficientDet object detection</text>
+  <text x="175" y="305" font-size="10.5" fill="#527a63" text-anchor="middle">(models/ *.task, *.tflite)</text>
+
+  <rect x="55" y="348" width="240" height="76" rx="8" fill="#ffffff" stroke="#0e7c4a"/>
+  <text x="175" y="368" font-size="12.5" font-weight="600" fill="#14532d" text-anchor="middle">Event builder &amp; queue</text>
+  <text x="175" y="385" font-size="10.5" fill="#527a63" text-anchor="middle">posture_window summaries,</text>
+  <text x="175" y="400" font-size="10.5" fill="#527a63" text-anchor="middle">whitelisted object snapshots</text>
+  <text x="175" y="415" font-size="10.5" fill="#527a63" text-anchor="middle">→ compact JSON only</text>
+
+  <rect x="55" y="458" width="240" height="60" rx="8" fill="#ffffff" stroke="#0e7c4a"/>
+  <text x="175" y="480" font-size="12.5" font-weight="600" fill="#14532d" text-anchor="middle">Command poller</text>
+  <text x="175" y="497" font-size="10.5" fill="#527a63" text-anchor="middle">long-polls GET /pi/commands</text>
+
+  <text x="175" y="552" font-size="11.5" font-weight="700" fill="#0e7c4a" text-anchor="middle">🔒 Raw video never leaves the device</text>
+  <text x="175" y="570" font-size="10.5" fill="#3f6f57" text-anchor="middle">every edge → backend call is bearer-token authed</text>
+
+  <path d="M175,204 L175,238" fill="none" stroke="#475569" stroke-width="1.6" marker-end="url(#arrS)"/>
+  <path d="M175,314 L175,348" fill="none" stroke="#475569" stroke-width="1.6" marker-end="url(#arrS)"/>
+
+  <!-- ================= BACKEND ================= -->
+  <rect x="390" y="100" width="640" height="660" rx="12" fill="#eaf0fc" stroke="#1d4ed8" stroke-width="1.5"/>
+  <text x="710" y="126" font-size="13" font-weight="700" fill="#1d4ed8" text-anchor="middle">BACKEND — app.py (localhost or Alibaba Cloud ECS)</text>
+
+  <!-- API strip -->
+  <rect x="415" y="140" width="590" height="64" rx="8" fill="#ffffff" stroke="#1d4ed8"/>
+  <text x="710" y="162" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">HTTP API (stdlib ThreadingHTTPServer)</text>
+  <text x="710" y="180" font-size="10.5" fill="#5b6b91" text-anchor="middle">POST /events · GET /pi/commands · /api/session-settings · /api/calibration · /api/nudge-now</text>
+  <text x="710" y="195" font-size="10.5" fill="#5b6b91" text-anchor="middle">/api/latest-notification · /api/session-summary · serves PWA (/app) &amp; shared assets</text>
+
+  <!-- stores band -->
+  <rect x="415" y="240" width="590" height="64" rx="8" fill="#eef2f7" stroke="#475569" stroke-dasharray="0"/>
+  <text x="710" y="262" font-size="12.5" font-weight="600" fill="#334155" text-anchor="middle">Local JSON stores (no database)</text>
+  <text x="710" y="280" font-size="10.5" fill="#64748b" text-anchor="middle">monitor_data/ (posture events + Qwen analyses) · object_monitor_data/ (snapshots) · baseline.json</text>
+  <text x="710" y="295" font-size="10.5" fill="#64748b" text-anchor="middle">nudge_agent_data/ (decisions, latest notification) · session settings &amp; summaries</text>
+
+  <!-- left column -->
+  <rect x="415" y="340" width="280" height="76" rx="8" fill="#ffffff" stroke="#1d4ed8"/>
+  <text x="555" y="360" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">Posture analysis loop</text>
+  <text x="555" y="377" font-size="10.5" fill="#5b6b91" text-anchor="middle">long_monitor — every N s sends recent</text>
+  <text x="555" y="392" font-size="10.5" fill="#5b6b91" text-anchor="middle">posture windows + baseline to Qwen</text>
+  <text x="555" y="407" font-size="10.5" fill="#5b6b91" text-anchor="middle">for an observational summary</text>
+
+  <rect x="415" y="450" width="280" height="76" rx="8" fill="#ffffff" stroke="#1d4ed8"/>
+  <text x="555" y="470" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">Object capture scheduler</text>
+  <text x="555" y="487" font-size="10.5" fill="#5b6b91" text-anchor="middle">object_monitor — queues object_capture</text>
+  <text x="555" y="502" font-size="10.5" fill="#5b6b91" text-anchor="middle">commands with whitelist labels</text>
+  <text x="555" y="517" font-size="10.5" fill="#5b6b91" text-anchor="middle">from baseline.json</text>
+
+  <rect x="415" y="560" width="280" height="76" rx="8" fill="#ffffff" stroke="#1d4ed8"/>
+  <text x="555" y="580" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">Calibration</text>
+  <text x="555" y="597" font-size="10.5" fill="#5b6b91" text-anchor="middle">baseline_calibration — builds personal</text>
+  <text x="555" y="612" font-size="10.5" fill="#5b6b91" text-anchor="middle">posture/object baseline; Qwen classifies</text>
+  <text x="555" y="627" font-size="10.5" fill="#5b6b91" text-anchor="middle">desk objects → whitelist policy</text>
+
+  <rect x="415" y="672" width="280" height="64" rx="8" fill="#ffffff" stroke="#1d4ed8"/>
+  <text x="555" y="694" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">Session summary</text>
+  <text x="555" y="711" font-size="10.5" fill="#5b6b91" text-anchor="middle">session_summary — end-of-session recap</text>
+  <text x="555" y="726" font-size="10.5" fill="#5b6b91" text-anchor="middle">from analyses + decisions, in chosen tone</text>
+
+  <!-- right column -->
+  <rect x="725" y="340" width="280" height="110" rx="8" fill="#fff9f0" stroke="#c2620a"/>
+  <text x="865" y="360" font-size="12.5" font-weight="600" fill="#9a4c07" text-anchor="middle">Nudge decision agent</text>
+  <text x="865" y="377" font-size="10.5" fill="#8a6b45" text-anchor="middle">nudge.py — Qwen tool-calling agent with</text>
+  <text x="865" y="392" font-size="10.5" fill="#8a6b45" text-anchor="middle">bounded retrieval tools (DataTools):</text>
+  <text x="865" y="407" font-size="10.5" fill="#8a6b45" text-anchor="middle">posture context, object dwell, baseline…</text>
+  <text x="865" y="424" font-size="10.5" fill="#8a6b45" text-anchor="middle">cooldowns · modes: auto / qwen / local</text>
+  <text x="865" y="441" font-size="10.5" fill="#8a6b45" text-anchor="middle">→ should_nudge? category, urgency, focus</text>
+
+  <rect x="725" y="480" width="280" height="64" rx="8" fill="#ffffff" stroke="#1d4ed8"/>
+  <text x="865" y="502" font-size="12.5" font-weight="600" fill="#1e3a8a" text-anchor="middle">Notification copywriter</text>
+  <text x="865" y="519" font-size="10.5" fill="#5b6b91" text-anchor="middle">nudge_copywriter — turns decision into</text>
+  <text x="865" y="534" font-size="10.5" fill="#5b6b91" text-anchor="middle">title/body in the user's tone (Qwen)</text>
+
+  <rect x="725" y="574" width="280" height="64" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-dasharray="5 4"/>
+  <text x="865" y="596" font-size="12.5" font-weight="600" fill="#475569" text-anchor="middle">Local fallback</text>
+  <text x="865" y="613" font-size="10.5" fill="#64748b" text-anchor="middle">local_fallback — deterministic rules,</text>
+  <text x="865" y="628" font-size="10.5" fill="#64748b" text-anchor="middle">zero network — offline keeps working</text>
+
+  <!-- backend internal arrows -->
+  <path d="M710,204 L710,240" fill="none" stroke="#475569" stroke-width="1.8" marker-end="url(#arrS)"/>
+  <text x="720" y="228" font-size="10.5" font-weight="600" fill="#334155">② persist events</text>
+
+  <path d="M520,304 L520,340" fill="none" stroke="#475569" stroke-width="1.6" marker-end="url(#arrS)"/>
+  <text x="428" y="326" font-size="10.5" fill="#334155">④ windows + baseline</text>
+
+  <path d="M865,304 L865,340" fill="none" stroke="#475569" stroke-width="1.6" marker-end="url(#arrS)"/>
+  <text x="875" y="326" font-size="10.5" fill="#334155">⑤ bounded context</text>
+
+  <path d="M865,450 L865,480" fill="none" stroke="#475569" stroke-width="1.6" marker-end="url(#arrS)"/>
+  <text x="875" y="470" font-size="10.5" fill="#334155">⑥ decision</text>
+
+  <path d="M1005,420 C1026,430 1026,590 1005,600" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrG)"/>
+  <text x="1010" y="465" font-size="9.5" fill="#64748b" transform="rotate(90 1010 465)">on Qwen failure / local mode</text>
+
+  <path d="M1005,512 C1030,505 1032,315 1008,296" fill="none" stroke="#475569" stroke-width="1.6" marker-end="url(#arrS)"/>
+  <text x="1040" y="415" font-size="10.5" fill="#334155" transform="rotate(90 1040 415)">⑦ notification JSON</text>
+
+  <path d="M445,450 C428,442 428,312 445,304" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrG)"/>
+  <path d="M555,560 C555,548 555,540 555,526" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrG)"/>
+  <text x="563" y="546" font-size="9.5" fill="#64748b">whitelist</text>
+
+  <!-- ================= CLOUD ================= -->
+  <rect x="1090" y="100" width="380" height="270" rx="12" fill="#fdf3e3" stroke="#c2620a" stroke-width="1.5"/>
+  <text x="1280" y="126" font-size="13" font-weight="700" fill="#c2620a" text-anchor="middle">ALIBABA CLOUD</text>
+
+  <rect x="1115" y="146" width="330" height="94" rx="8" fill="#ffffff" stroke="#c2620a"/>
+  <text x="1280" y="168" font-size="12.5" font-weight="600" fill="#9a4c07" text-anchor="middle">Qwen (qwen3.7-max)</text>
+  <text x="1280" y="186" font-size="10.5" fill="#8a6b45" text-anchor="middle">DashScope compatible-mode API</text>
+  <text x="1280" y="201" font-size="10.5" fill="#8a6b45" text-anchor="middle">posture judgement · object policy</text>
+  <text x="1280" y="216" font-size="10.5" fill="#8a6b45" text-anchor="middle">nudge decisions · notification copy</text>
+  <text x="1280" y="231" font-size="10.5" fill="#8a6b45" text-anchor="middle">session summaries</text>
+
+  <rect x="1115" y="262" width="330" height="86" rx="8" fill="#ffffff" stroke="#c2620a" stroke-dasharray="5 4"/>
+  <text x="1280" y="284" font-size="12.5" font-weight="600" fill="#9a4c07" text-anchor="middle">ECS instance (optional public deploy)</text>
+  <text x="1280" y="302" font-size="10.5" fill="#8a6b45" text-anchor="middle">nginx + Basic Auth + systemd</text>
+  <text x="1280" y="317" font-size="10.5" fill="#8a6b45" text-anchor="middle">cloud/alibaba/ecs/ install &amp; deploy scripts</text>
+  <text x="1280" y="332" font-size="10.5" fill="#8a6b45" text-anchor="middle">hosts app.py identically to localhost</text>
+
+  <!-- ================= CLIENT ================= -->
+  <rect x="1090" y="430" width="380" height="330" rx="12" fill="#f2ecfd" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="1280" y="456" font-size="13" font-weight="700" fill="#7c3aed" text-anchor="middle">BROWSER — local delivery</text>
+
+  <rect x="1115" y="476" width="330" height="94" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+  <text x="1280" y="498" font-size="12.5" font-weight="600" fill="#5b21b6" text-anchor="middle">Pomodoro PWA (web_app/)</text>
+  <text x="1280" y="516" font-size="10.5" fill="#7a6b9b" text-anchor="middle">session setup (intent, tone, struggles)</text>
+  <text x="1280" y="531" font-size="10.5" fill="#7a6b9b" text-anchor="middle">pomodoro timer · calibration UI</text>
+  <text x="1280" y="546" font-size="10.5" fill="#7a6b9b" text-anchor="middle">shows nudges &amp; session summary</text>
+
+  <text x="1280" y="695" font-size="11.5" font-weight="700" fill="#7c3aed" text-anchor="middle">🧑 User gets nudged back on task</text>
+  <text x="1280" y="713" font-size="10.5" fill="#7a6b9b" text-anchor="middle">launched via the one-click desktop launcher</text>
+
+  <!-- ================= CROSS-BOUNDARY ARROWS ================= -->
+  <!-- 1: edge events -> API -->
+  <path d="M295,386 C355,386 360,180 413,168" fill="none" stroke="#475569" stroke-width="2.2" marker-end="url(#arrS)"/>
+  <text x="330" y="230" font-size="11" font-weight="700" fill="#334155">① POST /events</text>
+  <text x="330" y="245" font-size="9.5" fill="#64748b">posture_window / object</text>
+  <text x="330" y="258" font-size="9.5" fill="#64748b">snapshots (bearer token)</text>
+
+  <!-- 3: commands -> edge -->
+  <path d="M413,196 C360,210 352,488 297,488" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrG)"/>
+  <text x="330" y="440" font-size="11" font-weight="700" fill="#64748b">③ commands</text>
+  <text x="330" y="455" font-size="9.5" fill="#64748b">object_capture with</text>
+  <text x="330" y="468" font-size="9.5" fill="#64748b">whitelist labels</text>
+
+  <!-- Qwen bus -->
+  <path d="M1030,196 L1112,196" fill="none" stroke="#c2620a" stroke-width="2.6" marker-end="url(#arrO)" marker-start="url(#arrO)"/>
+  <text x="1071" y="186" font-size="10.5" font-weight="700" fill="#c2620a" text-anchor="middle">④⑤⑥ Qwen calls</text>
+  <text x="1071" y="212" font-size="9" fill="#b0722e" text-anchor="middle">JSON in, JSON out —</text>
+  <text x="1071" y="223" font-size="9" fill="#b0722e" text-anchor="middle">never raw video</text>
+
+  <!-- deploy dashed -->
+  <path d="M1030,130 C1072,132 1088,280 1112,292" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrG)"/>
+  <text x="1063" y="255" font-size="9.5" fill="#64748b" transform="rotate(72 1063 255)">deployed on</text>
+
+  <!-- 8: PWA <-> API -->
+  <path d="M1113,520 C1048,520 1040,236 1010,206" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrP)" marker-start="url(#arrP)"/>
+  <text x="1052" y="400" font-size="11" font-weight="700" fill="#7c3aed" transform="rotate(90 1052 400)">⑧ polls notifications ·</text>
+  <text x="1068" y="400" font-size="9.5" fill="#8b6fc9" transform="rotate(90 1068 400)">posts settings, calibration, nudge-now</text>
+  <text x="1084" y="400" font-size="9.5" fill="#8b6fc9" transform="rotate(90 1084 400)">(Basic Auth on public deploy)</text>
+
+  <!-- ================= LEGEND ================= -->
+  <g font-size="10.5" fill="#475569">
+    <line x1="40" y1="790" x2="80" y2="790" stroke="#475569" stroke-width="2" marker-end="url(#arrS)"/>
+    <text x="88" y="794">data / events</text>
+    <line x1="185" y1="790" x2="225" y2="790" stroke="#c2620a" stroke-width="2.4" marker-end="url(#arrO)"/>
+    <text x="233" y="794">Qwen API call (DashScope)</text>
+    <line x1="405" y1="790" x2="445" y2="790" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrG)"/>
+    <text x="453" y="794">control / fallback / deploy</text>
+    <line x1="625" y1="790" x2="665" y2="790" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrP)"/>
+    <text x="673" y="794">user-facing</text>
+    <text x="790" y="794" font-weight="700" fill="#0e7c4a">Privacy invariant: no raw video crosses Edge → Backend or Backend → Cloud.</text>
+  </g>
+</svg>

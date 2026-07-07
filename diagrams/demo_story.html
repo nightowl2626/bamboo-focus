@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bamboo Focus — How it works</title>
+<style>
+  :root{
+    --green:#0e7c4a; --green-d:#0a5c37; --green-l:#e6f4ed;
+    --ink:#1c2b24; --sub:#5a7266; --warn:#c2620a; --purple:#7c3aed;
+    --cream:#f7f9f6; --card:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{background:#e9efe9;font-family:"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);
+    display:flex;align-items:center;justify-content:center;padding:10px}
+  .frame{height:min(96vh,1200px);max-width:100%;aspect-ratio:9/16;background:var(--cream);border-radius:24px;
+    box-shadow:0 20px 60px rgba(20,60,40,.18);overflow:hidden;display:flex;flex-direction:column;position:relative}
+
+  header{display:flex;align-items:center;gap:9px;padding:16px 20px 0;flex-wrap:wrap}
+  .logo{font-size:24px}
+  header b{font-size:17px;letter-spacing:.2px}
+  header span{color:var(--sub);font-size:11px;margin-left:2px}
+
+  .stage{flex:1;position:relative}
+  .scene{position:absolute;inset:0;padding:8px 20px 10px;display:flex;flex-direction:column;
+    align-items:center;text-align:center;opacity:0;visibility:hidden;transition:opacity .6s}
+  .scene.active{opacity:1;visibility:visible}
+  h2{font-size:clamp(17px,4.6vh,24px);margin-top:8px;color:var(--green-d);line-height:1.25}
+  .sub{color:var(--sub);font-size:clamp(12px,2vh,14.5px);max-width:400px;margin-top:8px;line-height:1.45}
+  .art{flex:1;width:100%;display:flex;align-items:center;justify-content:center;min-height:0;margin-top:4px}
+
+  /* generic entrance animations — restart each time a scene becomes active */
+  .scene.active .pop{animation:pop .6s cubic-bezier(.2,1.4,.4,1) both}
+  .scene.active .rise{animation:rise .7s ease both}
+  @keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+  @keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+  .d1{animation-delay:.5s!important}.d2{animation-delay:1.1s!important}.d3{animation-delay:1.7s!important}
+  .d4{animation-delay:2.3s!important}.d5{animation-delay:2.9s!important}.d6{animation-delay:3.5s!important}
+  .d7{animation-delay:4.1s!important}.d8{animation-delay:4.8s!important}
+
+  .chip{background:var(--card);border:1.5px solid var(--green);border-radius:12px;padding:7px 12px;
+    font-size:12.5px;font-family:Consolas,monospace;color:var(--green-d);box-shadow:0 4px 12px rgba(14,124,74,.12)}
+  .card{background:var(--card);border-radius:16px;padding:14px 16px;box-shadow:0 8px 24px rgba(20,60,40,.10);text-align:left}
+
+  /* scene 1 */
+  .flexrow{display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center}
+  .deskart{font-size:76px;line-height:1}
+  .scanline{position:relative}
+  .scanline::after{content:"";position:absolute;left:-12%;right:-12%;height:3px;border-radius:3px;
+    background:linear-gradient(90deg,transparent,#22c55e,transparent);top:10%;opacity:0}
+  .scene.active .scanline::after{animation:scan 2.6s ease-in-out 1s infinite}
+  @keyframes scan{0%{top:8%;opacity:0}15%{opacity:1}85%{opacity:1}100%{top:88%;opacity:0}}
+  .col{display:flex;flex-direction:column;gap:11px;align-items:center}
+  .novid{display:flex;align-items:center;gap:8px;background:#fdeeee;border:1.5px solid #d05050;color:#a03030;
+    border-radius:12px;padding:7px 12px;font-size:12.5px;font-weight:600}
+
+  /* scene 2 */
+  .ringwrap{position:relative;width:170px;height:170px}
+  .ringwrap svg{width:170px;height:170px}
+  .ringwrap svg{transform:rotate(-90deg)}
+  .ringbg{fill:none;stroke:#d7e7dd;stroke-width:12}
+  .ringfg{fill:none;stroke:var(--green);stroke-width:12;stroke-linecap:round;stroke-dasharray:553;stroke-dashoffset:553}
+  .scene.active .ringfg{animation:fillring 5s ease-out .4s forwards}
+  @keyframes fillring{to{stroke-dashoffset:0}}
+  .ringtxt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ringtxt b{font-size:29px;color:var(--green-d)}
+  .ringtxt span{font-size:12.5px;color:var(--sub)}
+  .saved{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--green-d);font-size:16px}
+
+  /* scene 3 */
+  .pipe{display:flex;align-items:center;gap:6px}
+  .dots{width:120px;height:4px;background:repeating-linear-gradient(90deg,var(--green) 0 10px,transparent 10px 20px);
+    border-radius:2px}
+  .scene.active .dots{animation:slidedots 1s linear infinite}
+  @keyframes slidedots{to{background-position:20px 0}}
+  .agentcard{max-width:360px;width:100%}
+  .agentcard h3{font-size:14.5px;margin-bottom:5px}
+  .agentcard p{font-size:13px;color:var(--sub);line-height:1.45}
+  .ok{color:var(--green-d);font-weight:600}
+  .bad{color:var(--warn);font-weight:600}
+
+  /* scene 4 */
+  .brainwrap{display:flex;flex-direction:column;align-items:center;gap:16px;justify-content:center}
+  .inputs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;max-width:380px}
+  .inchip{background:var(--card);border:1.5px solid #b9cfc2;border-radius:20px;padding:5px 12px;font-size:12px;color:var(--ink)}
+  .scene.active .inchip{animation:flyin .6s ease both}
+  @keyframes flyin{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:translateY(0)}}
+  .brain{width:118px;height:118px;border-radius:50%;background:var(--green);color:#fff;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-weight:700;font-size:13px;box-shadow:0 0 0 10px rgba(14,124,74,.14)}
+  .scene.active .brain{animation:breathe 2.4s ease-in-out infinite}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 8px rgba(14,124,74,.12)}50%{box-shadow:0 0 0 20px rgba(14,124,74,.05)}}
+  .brain .emoji{font-size:36px}
+  .verdicts{display:flex;flex-direction:column;gap:8px;align-items:center}
+  .quiet{opacity:.55}
+
+  /* scene 5 */
+  .tones{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+  .tone{border:2px solid #b9cfc2;background:var(--card);border-radius:22px;padding:7px 14px;font-size:13.5px;transition:.3s}
+  .tone.sel{border-color:var(--green);background:var(--green-l);font-weight:700;transform:scale(1.08)}
+  .toast{max-width:380px;width:100%;border-left:6px solid var(--green);display:flex;gap:11px;align-items:flex-start}
+  .toast .t-emoji{font-size:26px}
+  .toast b{display:block;font-size:14px;margin-bottom:3px}
+  .toast p{font-size:13px;color:var(--sub);line-height:1.4}
+
+  /* scene 6 */
+  .summary{max-width:400px;width:100%}
+  .summary h3{font-size:15.5px;color:var(--green-d);margin-bottom:9px}
+  .stat{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:7px 0;border-bottom:1px dashed #dbe7df}
+  .stat b{color:var(--green-d);text-align:right}
+  .tip{margin-top:11px;background:var(--green-l);border-radius:10px;padding:9px 12px;font-size:13px;line-height:1.45}
+
+  /* footer */
+  footer{display:flex;align-items:center;gap:10px;padding:0 20px 16px}
+  .navdots{display:flex;gap:8px}
+  .navdot{width:11px;height:11px;border-radius:50%;background:#c8d8cd;border:none;cursor:pointer;padding:0;transition:.25s}
+  .navdot.on{background:var(--green);transform:scale(1.25)}
+  .bar{flex:1;height:5px;background:#dde8e0;border-radius:3px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--green);border-radius:3px}
+  .btn{border:1.5px solid #b9cfc2;background:#fff;border-radius:18px;padding:5px 14px;font-size:13px;cursor:pointer}
+  .btn:hover{border-color:var(--green)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header>
+    <span class="logo">🐼</span>
+    <b>Bamboo Focus</b>
+    <span>a focus coach that watches your desk, not you</span>
+  </header>
+
+  <div class="stage">
+
+    <!-- ============ SCENE 1 ============ -->
+    <section class="scene" id="s1">
+      <h2 class="rise">A camera that reads your focus — not your face</h2>
+      <p class="sub rise d1">While you work, Bamboo Focus watches posture, movement and the objects around you.
+        It produces <b>data points only</b> — never video.</p>
+      <div class="art">
+        <div class="flexrow">
+          <div class="deskart scanline pop d1">🧑‍💻</div>
+          <div style="font-size:40px" class="pop d2">📷</div>
+          <div class="col">
+            <div class="chip pop d3">posture: 33 landmark coords</div>
+            <div class="chip pop d4">motion score: 0.32</div>
+            <div class="chip pop d5">objects: mug @ (412, 208) · phone @ (610, 340)</div>
+            <div class="novid pop d6">🎥🚫 raw video never leaves the device</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCENE 2 ============ -->
+    <section class="scene" id="s2">
+      <h2 class="rise">First, 2 minutes to learn what's normal — for you</h2>
+      <p class="sub rise d1">It records your usual posture and habits as a personal <b>baseline</b>,
+        saves it, and then the real analysis begins.</p>
+      <div class="art">
+        <div class="flexrow">
+          <div class="ringwrap pop d1">
+            <svg viewBox="0 0 200 200"><circle class="ringbg" cx="100" cy="100" r="88"/><circle class="ringfg" cx="100" cy="100" r="88"/></svg>
+            <div class="ringtxt"><b>2:00</b><span>recording baseline…</span></div>
+          </div>
+          <div class="col">
+            <div class="chip pop d3">your usual sitting posture</div>
+            <div class="chip pop d4">how much you normally move</div>
+            <div class="chip pop d5">what's always on your desk</div>
+            <div class="saved pop d7">✅ baseline saved — analysis starts</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCENE 3 ============ -->
+    <section class="scene" id="s3">
+      <h2 class="rise">Tiny agents turn numbers into plain words</h2>
+      <p class="sub rise d1">Data points flow to the cloud, where two mini-agents make sense of them.</p>
+      <div class="art">
+        <div class="col" style="align-items:center;gap:18px">
+          <div class="pipe pop d1">
+            <span style="font-size:34px">📟</span>
+            <div class="dots"></div>
+            <span style="font-size:38px">☁️</span>
+          </div>
+          <div class="flexrow" style="gap:20px">
+            <div class="card agentcard pop d2">
+              <h3>🧘 Posture &amp; motion agent</h3>
+              <p>"Shoulders drooping and a lot of fidgeting over the last 10 minutes — more restless than your baseline."</p>
+            </div>
+            <div class="card agentcard pop d4">
+              <h3>🗂️ Object agent</h3>
+              <p><span class="ok">work tools:</span> laptop ✓ keyboard ✓<br>
+                 <span class="bad">distractions &amp; mess:</span> phone, empty coffee mug, scrap paper</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCENE 4 ============ -->
+    <section class="scene" id="s4">
+      <h2 class="rise">One smart agent decides if it's worth interrupting you</h2>
+      <p class="sub rise d1">It sees everything — and stays quiet unless a nudge is actually useful,
+        or you asked it to watch something specific in your session intent.</p>
+      <div class="art">
+        <div class="brainwrap">
+          <div class="inputs">
+            <div class="inchip d1">mini-agent analyses</div>
+            <div class="inchip d2">raw data points</div>
+            <div class="inchip d3">your baseline</div>
+            <div class="inchip d4">past history</div>
+            <div class="inchip d5">your intent &amp; notification level</div>
+          </div>
+          <div class="brain pop d2"><span class="emoji">🧠</span>main agent</div>
+          <div class="verdicts">
+            <div class="chip quiet pop d5">phone nearby… you're focused → ✕ stay quiet</div>
+            <div class="chip quiet pop d6">slight slouch, 3 min → ✕ stay quiet</div>
+            <div class="chip pop d7" style="border-color:var(--warn);color:var(--warn)">20 min restless + phone → ✓ nudge</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCENE 5 ============ -->
+    <section class="scene" id="s5">
+      <h2 class="rise">…and it talks to you the way you want</h2>
+      <p class="sub rise d1">Pick a tone at the start of the session — nudges arrive in your style.</p>
+      <div class="art">
+        <div class="col" style="align-items:center;gap:22px">
+          <div class="tones pop d1">
+            <span class="tone" id="toneA">😄 funny</span>
+            <span class="tone" id="toneB">😤 strict</span>
+            <span class="tone" id="toneC">😊 gentle</span>
+          </div>
+          <div class="card toast pop d2" id="toast">
+            <span class="t-emoji" id="toastEmoji">🐼</span>
+            <div><b id="toastTitle">Mug check</b>
+            <p id="toastBody">That coffee mug has been empty for an hour. It's decoration now — back to the doc?</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCENE 6 ============ -->
+    <section class="scene" id="s6">
+      <h2 class="rise">When you're done: honest feedback</h2>
+      <p class="sub rise d1">A session summary shows how it went — including whether the focus timer
+        you picked actually works for you.</p>
+      <div class="art">
+        <div class="card summary pop d1">
+          <h3>📋 Session summary — 50 min deep work</h3>
+          <div class="stat"><span>Focus</span><b>solid, dipped around min 20</b></div>
+          <div class="stat"><span>Nudges sent</span><b>2 (of 7 candidate moments)</b></div>
+          <div class="stat"><span>Posture</span><b>improved after the break</b></div>
+          <div class="tip pop d4">💡 You tend to drift ~20 minutes in. Your 25-minute timer might be a stretch —
+            try 20-minute rounds next session.</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <button class="btn" id="playBtn">⏸ Pause</button>
+    <button class="btn" id="prevBtn">←</button>
+    <button class="btn" id="nextBtn">→</button>
+    <div class="navdots" id="navdots"></div>
+    <div class="bar"><i id="barfill"></i></div>
+  </footer>
+</div>
+
+<script>
+const scenes=[...document.querySelectorAll('.scene')];
+const durs=[9000,9000,10000,11000,10500,10000];
+const dotsEl=document.getElementById('navdots');
+const bar=document.getElementById('barfill');
+const playBtn=document.getElementById('playBtn');
+let idx=0, playing=true, t0=0, raf=null, timer=null;
+
+scenes.forEach((_,i)=>{
+  const d=document.createElement('button');
+  d.className='navdot'; d.onclick=()=>go(i);
+  dotsEl.appendChild(d);
+});
+
+// tone cycling in scene 5
+const toneMsgs=[
+  {sel:'toneA',emoji:'🐼',title:'Mug check',body:"That coffee mug has been empty for an hour. It's decoration now — back to the doc?"},
+  {sel:'toneB',emoji:'📢',title:'Phone. Down.',body:'20 minutes of fidgeting and the phone is creeping closer. You said the report was the priority.'},
+  {sel:'toneC',emoji:'🌿',title:'Gentle check-in',body:"You've been a bit restless — maybe a quick stretch, then ease back into it?"},
+];
+let toneIdx=0, toneTimer=null;
+function cycleTone(){
+  const m=toneMsgs[toneIdx%3];
+  document.querySelectorAll('.tone').forEach(t=>t.classList.remove('sel'));
+  document.getElementById(m.sel).classList.add('sel');
+  document.getElementById('toastEmoji').textContent=m.emoji;
+  document.getElementById('toastTitle').textContent=m.title;
+  document.getElementById('toastBody').textContent=m.body;
+  toneIdx++;
+}
+
+function go(i){
+  idx=(i+scenes.length)%scenes.length;
+  scenes.forEach((s,j)=>s.classList.toggle('active',j===idx));
+  [...dotsEl.children].forEach((d,j)=>d.classList.toggle('on',j===idx));
+  clearInterval(toneTimer);
+  if(idx===4){ toneIdx=0; cycleTone(); toneTimer=setInterval(cycleTone,3200); }
+  t0=performance.now();
+  schedule();
+}
+function schedule(){
+  clearTimeout(timer); cancelAnimationFrame(raf);
+  if(!playing){ return; }
+  timer=setTimeout(()=>go(idx+1), durs[idx]);
+  const step=(now)=>{
+    bar.style.width=Math.min(100,(now-t0)/durs[idx]*100)+'%';
+    raf=requestAnimationFrame(step);
+  };
+  raf=requestAnimationFrame(step);
+}
+playBtn.onclick=()=>{
+  playing=!playing;
+  playBtn.textContent=playing?'⏸ Pause':'▶ Play';
+  if(playing){ t0=performance.now(); }
+  schedule();
+};
+document.getElementById('prevBtn').onclick=()=>go(idx-1);
+document.getElementById('nextBtn').onclick=()=>go(idx+1);
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight')go(idx+1);
+  else if(e.key==='ArrowLeft')go(idx-1);
+  else if(e.key===' '){e.preventDefault();playBtn.click();}
+});
+go(0);
+</script>
+</body>
+</html>

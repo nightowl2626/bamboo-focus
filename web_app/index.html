@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bamboo Focus</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="panda_head.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <button id="settingsToggle" class="settings-toggle" type="button" aria-label="Open settings">☰</button>
+
+  <main class="shell">
+    <section class="timer-panel">
+      <div class="panda-wrap">
+        <img id="pandaImage" src="/assets/panda_1.png" alt="">
+      </div>
+      <p id="mainInsight" class="main-insight hidden"></p>
+      <div class="timer-ring">
+        <span id="timerValue">25:00</span>
+        <small id="phaseLabel">ready</small>
+      </div>
+      <label class="intent-label">
+        Intent
+        <input id="intent" type="text" placeholder="What are you working on?">
+      </label>
+      <div class="actions">
+        <button id="primaryAction" class="primary" type="button">Start focus</button>
+        <button id="calibrate" type="button">Calibrate</button>
+      </div>
+      <p id="statusLine" class="status-line">Connecting to Bamboo Focus app...</p>
+    </section>
+
+    <button id="moreToggle" type="button" class="more-toggle">more ↓</button>
+
+    <section id="moreSections" class="grid hidden">
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Session Settings</h2>
+          <button id="enableNotifications" type="button" class="ghost">Enable notifications</button>
+        </div>
+        <div class="two-col">
+          <label>
+            Focus minutes
+            <input id="pomodoroMinutes" type="number" min="1" max="180" value="25">
+          </label>
+          <label>
+            Break minutes
+            <input id="breakMinutes" type="number" min="1" max="60" value="5">
+          </label>
+        </div>
+        <label>
+          Notification level
+          <select id="notificationLevel">
+            <option value="minimal">Minimal distractions</option>
+            <option value="balanced">Balanced</option>
+            <option value="active">More active coaching</option>
+          </select>
+        </label>
+        <label>
+          Agent tone
+          <select id="tone">
+            <option value="neutral">Neutral</option>
+            <option value="calm">Calm</option>
+            <option value="encouraging">Encouraging</option>
+            <option value="funny">Funny</option>
+            <option value="strict">Strict</option>
+          </select>
+        </label>
+        <fieldset>
+          <legend>Focus areas</legend>
+          <div class="chips" id="focusAreas">
+            <label><input type="checkbox" value="posture" checked> Posture</label>
+            <label><input type="checkbox" value="restlessness" checked> Restlessness</label>
+            <label><input type="checkbox" value="movement" checked> Movement</label>
+            <label><input type="checkbox" value="declutter" checked> Declutter</label>
+            <label><input type="checkbox" value="breaks"> Breaks</label>
+            <label><input type="checkbox" value="focus"> Focus</label>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="panel">
+        <h2>About Your Work</h2>
+        <fieldset>
+          <legend>What gets in the way?</legend>
+          <div class="chips" id="struggles">
+            <label><input type="checkbox" value="getting_started"> Getting started</label>
+            <label><input type="checkbox" value="staying_focused"> Staying focused</label>
+            <label><input type="checkbox" value="hyperfocus"> Hyperfocus</label>
+            <label><input type="checkbox" value="restlessness"> Restlessness</label>
+            <label><input type="checkbox" value="forgetting_breaks"> Forgetting breaks</label>
+            <label><input type="checkbox" value="desk_clutter"> Desk clutter</label>
+            <label><input type="checkbox" value="posture"> Posture</label>
+            <label><input type="checkbox" value="task_switching"> Task switching</label>
+          </div>
+        </fieldset>
+        <label>
+          Notes
+          <textarea id="struggleNotes" rows="3" placeholder="Anything specific the agent should understand?"></textarea>
+        </label>
+        <label>
+          Support preference
+          <textarea id="supportPreferences" rows="2" placeholder="Example: gentle reminders, direct prompts, break suggestions."></textarea>
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>System Status</h2>
+        <dl class="status-list">
+          <div><dt>Calibration</dt><dd id="calibrationStatus">unknown</dd></div>
+          <div><dt>Pi data</dt><dd id="piStatus">waiting</dd></div>
+          <div><dt>Nudge mode</dt><dd id="nudgeMode">unknown</dd></div>
+          <div><dt>Cloud sync</dt><dd id="cloudStatus">off</dd></div>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <h2>Latest Insight</h2>
+        <p id="latestInsight" class="insight">No session summary yet.</p>
+      </section>
+    </section>
+  </main>
+
+  <aside id="settingsDrawer" class="drawer" aria-hidden="true">
+    <div class="drawer-header">
+      <div>
+        <p class="eyebrow">Setup</p>
+        <h2>Connect the Pi</h2>
+      </div>
+      <button id="closeSettings" type="button" class="ghost">Close</button>
+    </div>
+
+    <section>
+      <p class="help-text">
+        Bamboo Focus has two pieces: this app receives events and decides when to nudge; the Pi watches posture
+        and objects locally, then sends only those results back here. No camera video is sent to the app.
+      </p>
+      <div class="setup-note">
+        <strong>Typical setup</strong>
+        <p>1. Start Bamboo Focus here. 2. Calibrate from the main screen. 3. Start the Pi script below. 4. Start a focus session.</p>
+      </div>
+      <div class="two-col">
+        <label>
+          Pi IP address
+          <input id="piIp" type="text" placeholder="">
+        </label>
+        <label>
+          Pi SSH user
+          <input id="piUser" type="text">
+        </label>
+      </div>
+      <label>
+        Project path on Pi
+        <input id="piPath" type="text">
+      </label>
+      <p class="help-text">
+        These three fields only build the SSH helper command. If you prefer to open a terminal on the Pi
+        yourself, you can ignore the SSH command and use the manual Pi command below.
+      </p>
+      <label>
+        Laptop API base for the Pi
+        <input id="laptopApiBase" type="text" readonly>
+      </label>
+      <p class="help-text">
+        This is the address the Pi sends data to. In cloud mode, it should be your Alibaba URL. In local mode,
+        it should be your laptop app URL.
+      </p>
+      <label>
+        SSH command from this laptop
+        <textarea id="sshCommand" rows="4" readonly></textarea>
+      </label>
+      <p class="help-text">
+        Use this when your laptop can SSH into the Pi. It connects to the Pi, changes into the project folder,
+        and starts camera monitoring with the right app address and token.
+      </p>
+      <button id="copySshCommand" type="button" class="primary full">Copy SSH command</button>
+      <label>
+        Command to run manually on the Pi
+        <textarea id="piCommand" rows="3" readonly></textarea>
+      </label>
+      <p class="help-text">
+        Use this if you are already connected to the Pi through Workbench, SSH, or a Pi terminal. Optional
+        debug view: add <code>--debug-stream</code>, then open <code>http://PI_IP:8765/</code>.
+      </p>
+      <button id="copyPiCommand" type="button" class="full">Copy Pi command</button>
+      <label>
+        Webcam demo command for judges
+        <textarea id="webcamCommand" rows="3" readonly></textarea>
+      </label>
+      <p class="help-text">
+        This uses the laptop webcam instead of the Pi, which is useful for judging or demos when no Raspberry Pi
+        is available. With debug enabled, open <code>http://127.0.0.1:8766/</code>.
+      </p>
+      <button id="copyWebcamCommand" type="button" class="full">Copy webcam demo command</button>
+    </section>
+
+    <section class="drawer-section">
+      <h2>Try It Locally</h2>
+      <p class="help-text">
+        To make the most of Bamboo Focus, clone the GitHub repo on your laptop and run the local app. That gives
+        you the web interface, Qwen nudges, calibration flow, and Pi or webcam demo scripts from one project.
+      </p>
+    </section>
+  </aside>
+  <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>

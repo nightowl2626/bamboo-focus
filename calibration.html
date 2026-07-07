@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlowPilot Pi Calibration</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #172033;
+      --muted: #617086;
+      --line: #d9e0ea;
+      --accent: #1769e0;
+      --accent-soft: #e8f1ff;
+      --good: #0f8f4f;
+      --warn: #b35c00;
+      --bad: #c52222;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 72px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    main {
+      padding: 24px 0 40px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel h2 {
+      margin: 0;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      font-size: 16px;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    label {
+      display: block;
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: 650;
+      color: var(--muted);
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      margin-top: 6px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      padding: 10px 11px;
+    }
+
+    textarea {
+      min-height: 132px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    .checkbox {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--text);
+    }
+
+    .checkbox input {
+      width: auto;
+      margin: 0;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 6px;
+      background: var(--accent);
+      color: white;
+      font: inherit;
+      font-weight: 700;
+      padding: 11px 14px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+
+    button.secondary {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--accent);
+    }
+
+    .hint,
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #144f9c;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .pill.good {
+      background: #e8f7ee;
+      color: var(--good);
+    }
+
+    .pill.warn {
+      background: #fff3e3;
+      color: var(--warn);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      min-height: 82px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      text-transform: uppercase;
+    }
+
+    .objects {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .object {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .object strong {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      padding: 9px 10px;
+      border-top: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      background: #fbfcfe;
+    }
+
+    code,
+    pre {
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+
+    pre {
+      max-height: 320px;
+      overflow: auto;
+      margin: 0;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      background: #101827;
+      color: #eef4ff;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      width: auto;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 12px 14px;
+    }
+
+    .tab.active {
+      color: var(--accent);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell topbar">
+      <h1>FlowPilot Pi Calibration</h1>
+      <div class="status-row">
+        <span id="connectionPill" class="pill warn">Connecting</span>
+        <span id="sessionPill" class="pill">No session</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell grid">
+    <section class="panel">
+      <h2>Start Capture</h2>
+      <div class="panel-body">
+        <label>
+          Capture seconds
+          <input id="seconds" type="number" min="1" max="3600" value="30">
+        </label>
+        <label>
+          Laptop API base sent to Pi
+          <input id="apiBase" type="text" placeholder="http://192.168.1.20:8000">
+        </label>
+        <label>
+          Bearer token
+          <input id="token" type="text" value="dev-local-token">
+        </label>
+        <label class="checkbox">
+          <input id="useSsh" type="checkbox">
+          Launch the Pi over SSH
+        </label>
+        <label>
+          Pi SSH target
+          <input id="piTarget" type="text" value="pi@raspberrypi.local">
+        </label>
+        <label>
+          Remote command template
+          <textarea id="commandTemplate"></textarea>
+        </label>
+        <button id="startButton">Start calibration</button>
+        <button id="objectCaptureButton" class="secondary">Request object capture now</button>
+        <p class="hint">
+          Template variables: <code>${api_base}</code>, <code>${token}</code>, <code>${seconds}</code>, <code>${run_seconds}</code>.
+          If SSH is off, run the generated command manually on the Pi.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Received Data</h2>
+      <div class="panel-body">
+        <div class="summary">
+          <div class="metric"><strong id="totalEvents">0</strong><span>Total events</span></div>
+          <div class="metric"><strong id="objectCount">0</strong><span>Objects</span></div>
+          <div class="metric"><strong id="postureCount">0</strong><span>Posture windows</span></div>
+          <div class="metric"><strong id="remaining">0s</strong><span>Remaining</span></div>
+        </div>
+        <h3>Objects</h3>
+        <div id="objects" class="objects"></div>
+        <h3>Latest posture sample</h3>
+        <div id="posture" class="small">No posture window received yet.</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="events">Events</button>
+        <button class="tab" data-tab="raw">Raw JSON</button>
+        <button class="tab" data-tab="process">Pi process</button>
+      </div>
+
+      <div id="eventsTab">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Received</th>
+              <th>Type</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody id="eventRows"></tbody>
+        </table>
+      </div>
+      <pre id="rawTab" class="hidden">{}</pre>
+      <pre id="processTab" class="hidden">No Pi process started.</pre>
+    </section>
+  </main>
+
+  <script>
+    const defaultTemplate = [
+      "cd ~/adhd-coach-new &&",
+      "timeout ${run_seconds}s",
+      "python pi_start.py",
+      "--laptop-api-base ${api_base}",
+      "--token ${token}",
+      "--download-object-model",
+      "--download-pose-model",
+      "--interval 1",
+      "--window-seconds ${run_seconds}",
+      "--command-poll-interval 1"
+    ].join(" ");
+
+    const state = { snapshot: null };
+    const $ = (id) => document.getElementById(id);
+
+    $("commandTemplate").value = defaultTemplate;
+
+    async function loadInitialStatus() {
+      const response = await fetch("/api/status");
+      const snapshot = await response.json();
+      applySnapshot(snapshot);
+      const config = snapshot.config || {};
+      $("apiBase").value = config.api_base || $("apiBase").value;
+      $("token").value = config.token || $("token").value;
+      $("piTarget").value = config.pi_target || $("piTarget").value;
+      $("commandTemplate").value = config.command_template || $("commandTemplate").value;
+      if (snapshot.session) {
+        $("apiBase").value = snapshot.session.api_base || "";
+        $("token").value = snapshot.session.token || $("token").value;
+      }
+    }
+
+    function startStream() {
+      const stream = new EventSource("/api/stream");
+      stream.addEventListener("open", () => {
+        $("connectionPill").textContent = "Live";
+        $("connectionPill").className = "pill good";
+      });
+      stream.addEventListener("snapshot", (event) => {
+        applySnapshot(JSON.parse(event.data));
+      });
+      stream.addEventListener("error", () => {
+        $("connectionPill").textContent = "Reconnecting";
+        $("connectionPill").className = "pill warn";
+      });
+    }
+
+    function applySnapshot(snapshot) {
+      state.snapshot = snapshot;
+      const summary = snapshot.summary || {};
+      const counts = summary.counts || {};
+      const session = snapshot.session;
+      const events = snapshot.events || [];
+
+      $("totalEvents").textContent = summary.total_events || 0;
+      $("objectCount").textContent = (summary.objects || []).length;
+      $("postureCount").textContent = counts.posture_window || 0;
+      $("remaining").textContent = session ? `${session.remaining_seconds}s` : "0s";
+      $("objectCaptureButton").disabled = !(session && session.active);
+      $("sessionPill").textContent = session
+        ? `${session.active ? "Receiving" : "Idle"} ${session.remaining_seconds}s left`
+        : "No session";
+      const pendingCommands = ((snapshot.commands || {}).pending || []).length;
+      if (pendingCommands) {
+        $("sessionPill").textContent += `, ${pendingCommands} command pending`;
+      }
+
+      if (session && !$("apiBase").value) {
+        $("apiBase").value = session.api_base || "";
+      }
+
+      renderObjects(summary.objects || []);
+      renderPosture(summary.latest_posture);
+      renderEvents(events);
+      $("rawTab").textContent = JSON.stringify(snapshot, null, 2);
+      renderProcess(session);
+    }
+
+    function renderObjects(objects) {
+      const container = $("objects");
+      if (!objects.length) {
+        container.innerHTML = '<div class="small">No object calibration snapshot received yet.</div>';
+        return;
+      }
+      container.innerHTML = objects.map((item) => `
+        <div class="object">
+          <strong>${escapeHtml(item.label)}</strong>
+          <div class="small">score ${formatNumber(item.score)}</div>
+          <div class="small">bbox ${escapeHtml(JSON.stringify(item.bbox || []))}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderPosture(posture) {
+      if (!posture) {
+        $("posture").textContent = "No posture window received yet.";
+        return;
+      }
+      $("posture").innerHTML = [
+        ["forward head", posture.forward_head_ratio],
+        ["shoulder tilt", posture.shoulder_tilt_ratio],
+        ["torso lean", posture.torso_lean_ratio],
+        ["motion", posture.motion_score],
+        ["confidence", posture.confidence]
+      ].map(([label, value]) => `<span class="pill">${label}: ${formatNumber(value)}</span>`).join(" ");
+    }
+
+    function renderEvents(events) {
+      const rows = $("eventRows");
+      if (!events.length) {
+        rows.innerHTML = '<tr><td colspan="4" class="small">Waiting for Pi events.</td></tr>';
+        return;
+      }
+      rows.innerHTML = events.slice().reverse().map((event) => `
+        <tr>
+          <td>${event._sequence || ""}</td>
+          <td>${escapeHtml(shortTime(event._received_at))}</td>
+          <td><code>${escapeHtml(event.event_type || "unknown")}</code></td>
+          <td>${escapeHtml(eventSummary(event))}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderProcess(session) {
+      if (!session) {
+        $("processTab").textContent = "No session started.";
+        return;
+      }
+      const lines = [
+        `SSH target: ${session.pi_target || "(manual)"}`,
+        `Started by server: ${session.process_started}`,
+        `Return code: ${session.process_returncode === null ? "(running or not started)" : session.process_returncode}`,
+        `Error: ${session.process_error || "(none)"}`,
+        "",
+        "Command:",
+        session.command || "",
+        "",
+        "stdout tail:",
+        ...(session.stdout_tail || []),
+        "",
+        "stderr tail:",
+        ...(session.stderr_tail || [])
+      ];
+      $("processTab").textContent = lines.join("\n");
+    }
+
+    function eventSummary(event) {
+      const payload = event.payload || {};
+      if (
+        event.event_type === "object_capture_snapshot" ||
+        event.event_type === "object_calibration_snapshot" ||
+        event.event_type === "object_surveillance_snapshot"
+      ) {
+        const objects = payload.objects || [];
+        return `${objects.length} objects: ${objects.map((item) => item.label).join(", ") || "none"}`;
+      }
+      if (event.event_type === "posture_window") {
+        const series = payload.series || {};
+        const confidence = Array.isArray(series.confidence) ? series.confidence.length : 0;
+        return `${confidence} samples from ${payload.window_start || "unknown start"}`;
+      }
+      return JSON.stringify(payload).slice(0, 180);
+    }
+
+    async function startCalibration() {
+      $("startButton").disabled = true;
+      try {
+        const response = await fetch("/api/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            seconds: Number($("seconds").value),
+            api_base: $("apiBase").value.trim(),
+            token: $("token").value.trim(),
+            use_ssh: $("useSsh").checked,
+            pi_target: $("piTarget").value.trim(),
+            command_template: $("commandTemplate").value
+          })
+        });
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+        applySnapshot(await response.json());
+      } catch (error) {
+        alert(`Could not start calibration: ${error.message}`);
+      } finally {
+        $("startButton").disabled = false;
+      }
+    }
+
+    async function requestObjectCapture() {
+      $("objectCaptureButton").disabled = true;
+      try {
+        const response = await fetch("/api/object-capture", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ seconds: 0 })
+        });
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+        const payload = await response.json();
+        applySnapshot(payload.snapshot);
+      } catch (error) {
+        alert(`Could not request object capture: ${error.message}`);
+      } finally {
+        const session = state.snapshot && state.snapshot.session;
+        $("objectCaptureButton").disabled = !(session && session.active);
+      }
+    }
+
+
+    function shortTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString();
+    }
+
+    function formatNumber(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "n/a";
+      return Number(value).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    document.querySelectorAll(".tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
+        button.classList.add("active");
+        $("eventsTab").classList.toggle("hidden", button.dataset.tab !== "events");
+        $("rawTab").classList.toggle("hidden", button.dataset.tab !== "raw");
+        $("processTab").classList.toggle("hidden", button.dataset.tab !== "process");
+      });
+    });
+
+    $("startButton").addEventListener("click", startCalibration);
+    $("objectCaptureButton").addEventListener("click", requestObjectCapture);
+    loadInitialStatus().then(startStream).catch(() => startStream());
+  </script>
+</body>
+</html>
