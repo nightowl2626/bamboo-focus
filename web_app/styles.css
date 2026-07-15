@@ -285,7 +285,8 @@ fieldset {
   margin: 14px 0 0;
 }
 
-.status-list div {
+.status-list div,
+.trace-list div {
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -293,14 +294,30 @@ fieldset {
   padding-bottom: 9px;
 }
 
-.status-list dt {
+.status-list dt,
+.trace-list dt {
   color: var(--muted);
 }
 
-.status-list dd {
+.status-list dd,
+.trace-list dd {
   margin: 0;
   font-weight: 700;
   text-align: right;
+}
+
+.trace-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.trace-list div {
+  align-items: flex-start;
+}
+
+.trace-list dd {
+  max-width: 62%;
 }
 
 .insight {

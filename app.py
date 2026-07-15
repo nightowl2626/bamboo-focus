@@ -36,6 +36,14 @@ from long_monitor import (
     read_json,
 )
 from local_fallback import local_decision
+from edge_privacy import (
+    build_privacy_ledger,
+    build_memory_profile,
+    latest_decision_trace,
+    remember_session_summary,
+    write_decision_trace,
+    write_privacy_ledger,
+)
 from nudge import (
     AgentPaths,
     DataTools,
@@ -520,9 +528,39 @@ class AppStore:
                 "effective_cooldown_minutes": self.effective_cooldown_minutes(),
                 "latest_decision_path": str(self.agent_paths.latest_decision_path),
                 "latest_notification_path": str(self.agent_paths.agent_data_dir / "latest_notification.json"),
+                "latest_trace_path": str(self.agent_paths.agent_data_dir / "latest_decision_trace.json"),
+                "memory_path": str(self.agent_paths.agent_data_dir / "agent_memory.json"),
             },
+            "privacy": self.privacy_ledger(compact=True),
             "session_settings": self.session_settings,
         }
+
+    def privacy_ledger(self, compact: bool = False) -> dict[str, Any]:
+        runtime_status = {
+            "focus_session_active": self.is_focus_session_active(),
+            "calibration_status": self.calibration.get("status"),
+            "nudge_mode": self.nudge_mode,
+        }
+        ledger = (
+            build_privacy_ledger(self.agent_paths, self.nudge_mode, runtime_status)
+            if compact
+            else write_privacy_ledger(self.agent_paths, self.nudge_mode, runtime_status)
+        )
+        if compact:
+            return {
+                "raw_video_sent_off_device": ledger["hardware_first"]["raw_video_sent_off_device"],
+                "raw_frames_persisted_by_backend": ledger["hardware_first"]["raw_frames_persisted_by_backend"],
+                "cloud_provider": ledger["data_boundaries"]["cloud_provider"],
+                "cloud_attempted_for_latest_decision": ledger["data_boundaries"]["cloud_attempted_for_latest_decision"],
+                "memory_scope": ledger["retention_model"]["memory_scope"],
+            }
+        return ledger
+
+    def explainability_trace(self) -> dict[str, Any]:
+        return latest_decision_trace(self.agent_paths)
+
+    def memory_profile(self) -> dict[str, Any]:
+        return build_memory_profile(self.agent_paths)
 
     def connect_info(self, port: int) -> dict[str, Any]:
         api_base = self.public_base_url or f"http://{discover_laptop_ip()}:{port}"
@@ -632,6 +670,8 @@ class AppStore:
                     context["retrieval_strategy"]["fallback_reason"] = qwen_error
         decision = apply_cooldown(decision, context["nudge_history"], self.effective_cooldown_minutes())
         record = save_decision(self.agent_paths, decision, context, qwen_error)
+        write_decision_trace(self.agent_paths, record, context, self.nudge_mode, qwen_error)
+        self.privacy_ledger(compact=False)
         print(
             "[app] nudge decision "
             f"should_nudge={record['decision'].get('should_nudge')} "
@@ -671,6 +711,7 @@ class AppStore:
             use_qwen=self.nudge_mode != "local",
         )
         write_session_summary(summary, self.agent_paths.agent_data_dir)
+        remember_session_summary(self.agent_paths, summary)
         print(
             "[app] session summary created "
             f"qwen_error={summary.get('qwen_error')} paragraph={summary.get('paragraph')}",
@@ -728,6 +769,12 @@ class AppHandler(BaseHTTPRequestHandler):
             summary_path = self.server.store.agent_paths.agent_data_dir / "latest_session_summary.json"
             payload = read_json(summary_path) if summary_path.exists() else None
             self._send_json({"ok": True, "summary": payload})
+        elif path == "/api/privacy-ledger":
+            self._send_json({"ok": True, "privacy": self.server.store.privacy_ledger()})
+        elif path == "/api/explainability":
+            self._send_json({"ok": True, "trace": self.server.store.explainability_trace()})
+        elif path == "/api/memory-profile":
+            self._send_json({"ok": True, "memory": self.server.store.memory_profile()})
         elif path == "/pi/commands":
             self._send_next_command()
         elif path == "/sessions/active":

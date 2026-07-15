@@ -105,13 +105,40 @@ Then point `webcam_edge.py` or `pi_start.py` at `http://<PUBLIC_IP>` instead of 
 
 No raw video crosses the Edge → Backend or Backend → Cloud boundary at any point.
 
+## EdgeAgent privacy-first agent platform
+
+This branch adds a local agent-platform layer around the existing edge loop:
+
+- **Privacy ledger:** `/api/privacy-ledger` records the hardware boundary, what derived JSON can leave the edge, whether Qwen was used for the latest decision, and where local runtime artifacts live.
+- **Decision trace:** `/api/explainability` explains the latest nudge decision, including evidence counts, tool path, local fallback status, and privacy guards.
+- **Compact agent memory:** `/api/memory-profile` stores only session-level summaries and aggregate patterns under `nudge_agent_data/`; it excludes raw video, frames, and full sensor streams.
+- **Read-only MCP server:** `bamboo_mcp_server.py` exposes local tools for agent clients without pushing data anywhere.
+
+Run the MCP server locally:
+
+```bash
+python bamboo_mcp_server.py --nudge-mode auto
+```
+
+Available MCP tools include:
+
+- `get_current_focus_state`
+- `get_recent_posture_summary`
+- `get_object_dwell_report`
+- `get_recent_nudge_history`
+- `explain_last_nudge`
+- `get_privacy_ledger`
+- `get_memory_profile`
+
+The MCP server is intentionally read-only. It reads local JSON/JSONL artifacts and exposes compact edge-derived summaries, not camera frames or raw video.
+
 ### Why this fits EdgeAgent
 
 - **Perceives via edge sensors:** pose landmarks and object detection run locally on the Pi/laptop (MediaPipe + a TFLite object detector). Only derived JSON (posture window summaries, whitelisted object labels) ever leaves the device.
 - **Reasons via cloud APIs:** the backend periodically sends posture summaries and calibration data to Qwen (Alibaba Cloud DashScope) for observational judgement, object-policy classification, nudge decisions, and notification copywriting.
 - **Acts locally:** nudges/notifications are delivered through the local Pomodoro PWA, not routed back through the cloud.
 - **Graceful degradation:** `--nudge-mode local` (see `local_fallback.py`) runs deterministic rule-based nudging with zero network/model calls, so the loop keeps working offline or on a weak connection. `auto` mode tries Qwen first and falls back to local rules on failure.
-- **Privacy-aware:** camera frames never leave the edge device. Only structured posture/object events cross the network, and every edge→backend call is bearer-token authenticated.
+- **Privacy-aware:** camera frames never leave the edge device. Only structured posture/object events cross the network, every edge→backend call is bearer-token authenticated, and the UI now exposes a privacy ledger plus per-decision trace for auditability.
 
 ## Proof of Alibaba Cloud deployment
 
