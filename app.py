@@ -59,6 +59,7 @@ from object_monitor import (
     ObjectMonitorStore,
     baseline_labels,
 )
+from qwen_config import qwen_model_config
 from session_summary import build_session_summary, write_session_summary
 
 
@@ -523,6 +524,7 @@ class AppStore:
             "calibration": self.calibration_status(),
             "nudge_agent": {
                 "mode": self.nudge_mode,
+                "qwen_models": qwen_model_config() if self.nudge_mode != "local" else {},
                 "interval_seconds": self.nudge_interval_seconds,
                 "cooldown_minutes": self.nudge_cooldown_minutes,
                 "effective_cooldown_minutes": self.effective_cooldown_minutes(),
@@ -647,6 +649,7 @@ class AppStore:
                     "posture_context": {},
                     "object_context": {},
                     "nudge_history": tools.recent_nudge_history(),
+                    "memory_profile": tools.memory_profile(),
                     "dynamic_tool_calls": retrieval.get("tool_calls", []),
                     "user_settings": self.session_settings,
                 }

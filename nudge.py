@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any
 
 from local_fallback import local_decision, local_decision_from_context
+from edge_privacy import build_memory_profile
+from qwen_config import qwen_model_for
 
 
 DEFAULT_QWEN_API_BASE = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
@@ -283,6 +285,17 @@ class DataTools:
                 "nudge_history": str(self.paths.decisions_path),
                 "baseline": str(self.paths.baseline),
             },
+        }
+
+    def memory_profile(self) -> dict[str, Any]:
+        profile = build_memory_profile(self.paths)
+        compact = dict(profile)
+        latest_sessions = compact.get("latest_sessions")
+        if isinstance(latest_sessions, list):
+            compact["latest_sessions"] = latest_sessions[-3:]
+        return {
+            "tool": "memory_profile",
+            **compact,
         }
 
     def baseline_raw(self, include_events: bool = False, max_events: int = 10) -> dict[str, Any]:
@@ -656,6 +669,7 @@ def build_context(tools: DataTools, include_raw: bool, user_settings: dict[str, 
         "posture_context": tools.latest_posture_context(),
         "object_context": tools.latest_object_context(),
         "nudge_history": tools.recent_nudge_history(),
+        "memory_profile": tools.memory_profile(),
         "user_settings": user_settings or {},
     }
     if include_raw:
@@ -702,7 +716,7 @@ def qwen_chat(
 ) -> dict[str, Any]:
     api_base = os.getenv("QWEN_API_BASE", DEFAULT_QWEN_API_BASE).rstrip("/")
     api_key = os.getenv("QWEN_API_KEY")
-    model = os.getenv("QWEN_MODEL", DEFAULT_QWEN_MODEL)
+    model = qwen_model_for("nudge", DEFAULT_QWEN_MODEL)
     if not api_key:
         raise RuntimeError("QWEN_API_KEY is not set")
     payload: dict[str, Any] = {
@@ -738,6 +752,14 @@ def tool_specs() -> list[dict[str, Any]]:
             "function": {
                 "name": "get_user_profile",
                 "description": "Fetch the user's work-session questionnaire, struggles, support preferences, intent, focus areas, and notification level.",
+                "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_memory_profile",
+                "description": "Fetch compact cross-session memory and adaptive guidance. Use it as a prior, not as proof that a nudge is needed.",
                 "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
             },
         },
@@ -905,6 +927,8 @@ def execute_tool(tools: DataTools, name: str, arguments: dict[str, Any]) -> dict
             return tools.monitor_overview()
         if name == "get_user_profile":
             return tools.user_profile()
+        if name == "get_memory_profile":
+            return tools.memory_profile()
         if name == "get_recent_posture_analyses":
             return tools.latest_posture_context(max_analyses=int(arguments.get("limit", 12)))
         if name == "search_posture_analyses":
@@ -976,9 +1000,11 @@ def call_qwen_tool_agent(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     overview = compact_record(tools.monitor_overview(), max_chars=12000)
     history = compact_record(tools.recent_nudge_history(), max_chars=12000)
+    memory = compact_record(tools.memory_profile(), max_chars=12000)
     calls_made: list[dict[str, Any]] = [
         {"name": "get_monitor_overview", "arguments": {}, "forced": True},
         {"name": "get_recent_nudge_history", "arguments": {}, "forced": True},
+        {"name": "get_memory_profile", "arguments": {}, "forced": True},
     ]
     messages: list[dict[str, Any]] = [
         {
@@ -995,6 +1021,7 @@ def call_qwen_tool_agent(
             "role": "user",
             "content": (
                 "Autonomously choose which tools to call. Start by inspecting monitor overview and recent nudge history. "
+                "Use compact memory as a cross-session prior, not as direct evidence. "
                 "Then query the user profile/questionnaire, posture analyses, object dwell, object snapshots, raw posture, "
                 "or baseline only if useful. "
                 "Use search tools instead of reading raw logs linearly. Avoid repeated nudges unless the issue is persistent "
@@ -1002,6 +1029,7 @@ def call_qwen_tool_agent(
                 "Decision guidance:\n"
                 "- Apply user settings when present: work intent, focus areas, desired notification level, and tone. "
                 "Use the questionnaire as preference context, not as proof that a nudge is needed. "
+                "Use memory to adapt thresholds and priorities when live evidence is borderline, but never nudge from memory alone. "
                 "A minimal notification level should require stronger evidence; active notification level can act on lighter signals. "
                 "Prioritize selected focus areas when several possible nudges compete.\n"
                 "- posture/slouching: nudge only if posture is meaningfully worse than baseline or repeatedly flagged.\n"
@@ -1035,7 +1063,8 @@ def call_qwen_tool_agent(
                 "Initial required tool context has already been retrieved. Use it as grounded data, "
                 "then call deeper tools if needed.\n\n"
                 f"get_monitor_overview result:\n{json.dumps(overview, indent=2)}\n\n"
-                f"get_recent_nudge_history result:\n{json.dumps(history, indent=2)}"
+                f"get_recent_nudge_history result:\n{json.dumps(history, indent=2)}\n\n"
+                f"get_memory_profile result:\n{json.dumps(memory, indent=2)}"
             ),
         },
     ]
@@ -1076,7 +1105,7 @@ def call_qwen_tool_agent(
 def call_qwen_for_decision(context: dict[str, Any]) -> dict[str, Any]:
     api_base = os.getenv("QWEN_API_BASE", DEFAULT_QWEN_API_BASE).rstrip("/")
     api_key = os.getenv("QWEN_API_KEY")
-    model = os.getenv("QWEN_MODEL", DEFAULT_QWEN_MODEL)
+    model = qwen_model_for("nudge", DEFAULT_QWEN_MODEL)
     if not api_key:
         raise RuntimeError("QWEN_API_KEY is not set")
 
@@ -1096,6 +1125,8 @@ def call_qwen_for_decision(context: dict[str, Any]) -> dict[str, Any]:
             "content": (
                 "Use the retrieved tool context below. Prefer latest Qwen monitor analyses and object dwell "
                 "summaries. Consult raw summaries only when the high-level analyses are missing, stale, or contradictory. "
+                "Use memory_profile only as a cross-session prior for adapting thresholds and priorities; never nudge "
+                "from memory alone without live posture, object, or session evidence. "
                 "Take recent nudge history into account and avoid repeating a topic unless the issue is clearly persistent "
                 "or high urgency.\n\n"
                 "Examples of valid factual decisions:\n"
@@ -1241,6 +1272,7 @@ def run_once(args: argparse.Namespace) -> dict[str, Any]:
                 "posture_context": {},
                 "object_context": {},
                 "nudge_history": tools.recent_nudge_history(),
+                "memory_profile": tools.memory_profile(),
                 "dynamic_tool_calls": retrieval.get("tool_calls", []),
                 "user_settings": user_settings,
             }

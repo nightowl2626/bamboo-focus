@@ -34,6 +34,28 @@ QWEN_MODEL=qwen3.7-max
 
 Skip this step if you just want to try it with `--nudge-mode local` (no Qwen calls).
 
+Optional model-role split:
+
+```
+# Smart analysis path. Use your strongest model here.
+QWEN_ANALYSIS_MODEL=qwen3.7-max
+
+# Cheaper utility path for notification copy and end-of-session summaries.
+QWEN_FAST_MODEL=qwen3.6-flash
+```
+
+You can also override individual roles:
+
+```
+QWEN_NUDGE_MODEL=qwen3.7-max
+QWEN_POSTURE_MODEL=qwen3.7-max
+QWEN_CALIBRATION_MODEL=qwen3.7-max
+QWEN_COPY_MODEL=qwen3.6-flash
+QWEN_SUMMARY_MODEL=qwen3.6-flash
+```
+
+The app keeps using Model Studio's OpenAI-compatible Chat Completions API. Alibaba's docs describe this as the low-friction OpenAI-compatible route, while the model guide recommends choosing across Qwen models from most capable to most cost-effective.
+
 ## 4. Run it locally (one machine, webcam)
 
 Start the backend + Pomodoro PWA:
@@ -112,6 +134,7 @@ This branch adds a local agent-platform layer around the existing edge loop:
 - **Privacy ledger:** `/api/privacy-ledger` records the hardware boundary, what derived JSON can leave the edge, whether Qwen was used for the latest decision, and where local runtime artifacts live.
 - **Decision trace:** `/api/explainability` explains the latest nudge decision, including evidence counts, tool path, local fallback status, and privacy guards.
 - **Compact agent memory:** `/api/memory-profile` stores only session-level summaries and aggregate patterns under `nudge_agent_data/`; it excludes raw video, frames, and full sensor streams.
+- **Adaptive coaching:** the nudge agent now reads compact memory as a prior. It can adjust local fallback thresholds and Qwen priorities when live evidence is borderline, but it never nudges from memory alone.
 - **Read-only MCP server:** `bamboo_mcp_server.py` exposes local tools for agent clients without pushing data anywhere.
 
 Run the MCP server locally:

@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from qwen_config import qwen_model_for
 
 DEFAULT_SERVER_BASE = os.getenv("FLOWPILOT_CALIBRATION_SERVER", "http://127.0.0.1:8000")
 DEFAULT_BASELINE_PATH = "baseline.json"
@@ -208,7 +209,7 @@ def classify_objects_locally(objects: list[dict[str, Any]]) -> dict[str, Any]:
 def classify_objects_with_qwen(objects: list[dict[str, Any]], context: str | None) -> dict[str, Any]:
     api_base = os.getenv("QWEN_API_BASE", DEFAULT_QWEN_API_BASE).rstrip("/")
     api_key = os.getenv("QWEN_API_KEY")
-    model = os.getenv("QWEN_MODEL", DEFAULT_QWEN_MODEL)
+    model = qwen_model_for("calibration", DEFAULT_QWEN_MODEL)
     if not api_key:
         raise RuntimeError("QWEN_API_KEY is not set")
 

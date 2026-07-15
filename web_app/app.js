@@ -236,6 +236,7 @@ function renderTrace() {
   const why = trace && trace.why ? trace.why : {};
   const edge = trace && trace.edge_evidence ? trace.edge_evidence : {};
   const agentPath = trace && trace.agent_path ? trace.agent_path : {};
+  const memory = trace && trace.memory_influence ? trace.memory_influence : {};
   $("traceDecision").textContent = decision.category
     ? `${decision.should_nudge ? "nudged" : "suppressed"}: ${decision.category}`
     : "No decision yet.";
@@ -243,6 +244,9 @@ function renderTrace() {
   $("traceEvidence").textContent = trace
     ? `${edge.posture_analysis_count || 0} posture / ${edge.object_snapshot_count || 0} object / ${edge.object_dwell_candidate_count || 0} dwell`
     : "No edge evidence yet.";
+  $("traceMemory").textContent = trace
+    ? `${memory.used ? "used" : "not used"} (${memory.session_count || 0} sessions): ${memory.guidance_summary || "No memory guidance yet."}`
+    : "not used yet";
   $("tracePath").textContent = agentPath.local_fallback_used ? "local fallback/rules" : agentPath.mode ? `${agentPath.mode} agent` : "not run yet";
 }
 
@@ -253,7 +257,8 @@ function renderMemory() {
     return;
   }
   const totals = memory.totals || {};
-  $("memoryProfile").textContent = `${memory.session_count} sessions remembered, ${totals.nudge_count || 0} nudges, ${totals.slouching || 0} posture flags, ${totals.restless || 0} restless flags.`;
+  const guidance = memory.adaptive_guidance || {};
+  $("memoryProfile").textContent = `${memory.session_count} sessions remembered, ${totals.nudge_count || 0} nudges, ${totals.slouching || 0} posture flags, ${totals.restless || 0} restless flags. ${guidance.summary || ""}`.trim();
 }
 
 function updatePanda() {

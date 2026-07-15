@@ -140,6 +140,19 @@ def write_decision_trace(
     posture_context = context.get("posture_context") if isinstance(context.get("posture_context"), dict) else {}
     object_context = context.get("object_context") if isinstance(context.get("object_context"), dict) else {}
     raw_summary = context.get("raw_posture_summary") if isinstance(context.get("raw_posture_summary"), dict) else {}
+    memory_profile = context.get("memory_profile") if isinstance(context.get("memory_profile"), dict) else {}
+    guidance = memory_profile.get("adaptive_guidance") if isinstance(memory_profile.get("adaptive_guidance"), dict) else {}
+    memory_adjustments = []
+    local_eval = context.get("local_rule_evaluation") if isinstance(context.get("local_rule_evaluation"), dict) else {}
+    if isinstance(local_eval.get("memory_adjustments"), list):
+        memory_adjustments.extend(str(item) for item in local_eval["memory_adjustments"])
+    for signal in decision.get("supporting_signals", []):
+        if isinstance(signal, str) and "session memory" in signal:
+            memory_adjustments.append(signal)
+    memory_influenced = bool(memory_adjustments) or (
+        memory_profile.get("session_count", 0) >= 2
+        and any(item in str(decision.get("rationale", "")).lower() for item in ("memory", "previous", "recurring"))
+    )
     trace = {
         "created_at": utc_now(),
         "decision_created_at": record.get("created_at"),
@@ -162,6 +175,13 @@ def write_decision_trace(
             "object_snapshot_count": len(object_context.get("snapshots", [])) if isinstance(object_context.get("snapshots"), list) else retrieval.get("object_snapshot_count", 0),
             "object_dwell_candidate_count": len(object_context.get("dwell_candidates", [])) if isinstance(object_context.get("dwell_candidates"), list) else retrieval.get("dwell_candidate_count", 0),
             "raw_posture_event_count": raw_summary.get("event_count", 0),
+        },
+        "memory_influence": {
+            "used": memory_influenced,
+            "session_count": memory_profile.get("session_count", 0),
+            "adjustments": sorted(set(memory_adjustments)),
+            "guidance_summary": guidance.get("summary", "No memory guidance available yet."),
+            "recommendations": guidance.get("recommendations", []),
         },
         "privacy_guards": {
             "raw_video_sent_off_device": False,
@@ -240,6 +260,7 @@ def build_memory_profile(paths: Any, max_sessions: int = 30) -> dict[str, Any]:
                 pass
         for area in session.get("focus_areas", []):
             focus_area_counts[str(area)] = focus_area_counts.get(str(area), 0) + 1
+    adaptive_guidance = build_adaptive_guidance(len(sessions), totals, category_counts)
     profile = {
         "updated_at": utc_now(),
         "session_count": len(sessions),
@@ -247,7 +268,59 @@ def build_memory_profile(paths: Any, max_sessions: int = 30) -> dict[str, Any]:
         "totals": totals,
         "nudge_category_counts": dict(sorted(category_counts.items())),
         "focus_area_counts": dict(sorted(focus_area_counts.items())),
+        "adaptive_guidance": adaptive_guidance,
         "latest_sessions": sessions[-5:],
     }
     write_json(paths.agent_data_dir / "agent_memory.json", profile)
     return profile
+
+
+def build_adaptive_guidance(
+    session_count: int,
+    totals: dict[str, int],
+    category_counts: dict[str, int],
+) -> dict[str, Any]:
+    sensitivity = {
+        "posture": "normal",
+        "restlessness": "normal",
+        "breaks": "normal",
+        "cleanup": "normal",
+    }
+    recommendations = []
+    if session_count < 2:
+        return {
+            "summary": "Not enough completed sessions to adapt coaching yet.",
+            "sensitivity": sensitivity,
+            "recommendations": recommendations,
+            "evidence": {"session_count": session_count},
+        }
+
+    if totals.get("slouching", 0) >= max(2, session_count):
+        sensitivity["posture"] = "higher"
+        recommendations.append("Treat live posture evidence as more important because slouching has recurred across sessions.")
+    if totals.get("restless", 0) >= max(2, session_count):
+        sensitivity["restlessness"] = "higher"
+        recommendations.append("Act slightly earlier on live restlessness signals because restlessness has recurred across sessions.")
+    if totals.get("too_still", 0) + totals.get("hyperfocus", 0) >= max(2, session_count):
+        sensitivity["breaks"] = "higher"
+        recommendations.append("Prefer movement-break nudges when live stillness suggests hyperfocus.")
+    if category_counts.get("cleanup", 0) + category_counts.get("object", 0) >= max(2, session_count // 2):
+        sensitivity["cleanup"] = "higher"
+        recommendations.append("Treat persistent monitorable objects as more actionable because cleanup nudges have recurred.")
+
+    active = [key for key, value in sensitivity.items() if value == "higher"]
+    summary = (
+        "Memory can adapt coaching for: " + ", ".join(active)
+        if active
+        else "Memory has enough sessions, but no strong recurring pattern yet."
+    )
+    return {
+        "summary": summary,
+        "sensitivity": sensitivity,
+        "recommendations": recommendations,
+        "evidence": {
+            "session_count": session_count,
+            "totals": totals,
+            "nudge_category_counts": dict(sorted(category_counts.items())),
+        },
+    }
