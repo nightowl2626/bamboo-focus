@@ -237,6 +237,7 @@ function renderTrace() {
   const edge = trace && trace.edge_evidence ? trace.edge_evidence : {};
   const agentPath = trace && trace.agent_path ? trace.agent_path : {};
   const memory = trace && trace.memory_influence ? trace.memory_influence : {};
+  const rag = trace && trace.history_rag ? trace.history_rag : {};
   $("traceDecision").textContent = decision.category
     ? `${decision.should_nudge ? "nudged" : "suppressed"}: ${decision.category}`
     : "No decision yet.";
@@ -247,6 +248,11 @@ function renderTrace() {
   $("traceMemory").textContent = trace
     ? `${memory.used ? "used" : "not used"} (${memory.session_count || 0} sessions): ${memory.guidance_summary || "No memory guidance yet."}`
     : "not used yet";
+  $("traceRag").textContent = trace
+    ? rag.available
+      ? `${rag.match_count || 0} matches for "${rag.query || "history"}"`
+      : "not searched in this path"
+    : "not searched yet";
   $("tracePath").textContent = agentPath.local_fallback_used ? "local fallback/rules" : agentPath.mode ? `${agentPath.mode} agent` : "not run yet";
 }
 

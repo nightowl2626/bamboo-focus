@@ -23,6 +23,7 @@ from typing import Any
 
 from local_fallback import local_decision, local_decision_from_context
 from edge_privacy import build_memory_profile
+from history_rag import search_history
 from qwen_config import qwen_model_for
 
 
@@ -297,6 +298,21 @@ class DataTools:
             "tool": "memory_profile",
             **compact,
         }
+
+    def search_history_rag(
+        self,
+        query: str,
+        limit: int = 6,
+        lookback_days: float | None = 30,
+        sources: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return search_history(
+            self.paths,
+            query=query,
+            limit=limit,
+            lookback_days=lookback_days,
+            sources=sources,
+        )
 
     def baseline_raw(self, include_events: bool = False, max_events: int = 10) -> dict[str, Any]:
         baseline = read_json(self.paths.baseline) or {}
@@ -656,6 +672,15 @@ class DataTools:
 
 
 def build_context(tools: DataTools, include_raw: bool, user_settings: dict[str, Any] | None = None) -> dict[str, Any]:
+    settings = user_settings or {}
+    history_terms = " ".join(
+        [
+            str(settings.get("intent") or ""),
+            " ".join(str(item) for item in settings.get("focus_areas", []) if item is not None)
+            if isinstance(settings.get("focus_areas"), list)
+            else "",
+        ]
+    ).strip()
     context = {
         "retrieval_strategy": {
             "summary": (
@@ -670,7 +695,12 @@ def build_context(tools: DataTools, include_raw: bool, user_settings: dict[str, 
         "object_context": tools.latest_object_context(),
         "nudge_history": tools.recent_nudge_history(),
         "memory_profile": tools.memory_profile(),
-        "user_settings": user_settings or {},
+        "history_rag": tools.search_history_rag(
+            query=history_terms or "posture restlessness cleanup break focus",
+            limit=4,
+            lookback_days=30,
+        ),
+        "user_settings": settings,
     }
     if include_raw:
         context["raw_posture_summary"] = tools.recent_raw_posture_summary()
@@ -761,6 +791,41 @@ def tool_specs() -> list[dict[str, Any]]:
                 "name": "get_memory_profile",
                 "description": "Fetch compact cross-session memory and adaptive guidance. Use it as a prior, not as proof that a nudge is needed.",
                 "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_history_rag",
+                "description": (
+                    "Search privacy-safe local history with BM25 RAG. Use this for specific past examples, "
+                    "recurring patterns, similar intents, prior suppressions, object clutter history, or posture history. "
+                    "The index contains derived summaries only, not raw video or camera frames."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 6},
+                        "lookback_days": {"type": "number", "minimum": 0, "default": 30},
+                        "sources": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "session_summary",
+                                    "nudge_decision",
+                                    "decision_trace",
+                                    "posture_analysis",
+                                    "object_snapshot",
+                                    "baseline_policy",
+                                ],
+                            },
+                        },
+                    },
+                    "required": ["query"],
+                    "additionalProperties": False,
+                },
             },
         },
         {
@@ -929,6 +994,14 @@ def execute_tool(tools: DataTools, name: str, arguments: dict[str, Any]) -> dict
             return tools.user_profile()
         if name == "get_memory_profile":
             return tools.memory_profile()
+        if name == "search_history_rag":
+            raw_sources = arguments.get("sources")
+            return tools.search_history_rag(
+                query=str(arguments.get("query", "")),
+                limit=int(arguments.get("limit", 6)),
+                lookback_days=arguments.get("lookback_days", 30),
+                sources=raw_sources if isinstance(raw_sources, list) else None,
+            )
         if name == "get_recent_posture_analyses":
             return tools.latest_posture_context(max_analyses=int(arguments.get("limit", 12)))
         if name == "search_posture_analyses":
@@ -1022,6 +1095,7 @@ def call_qwen_tool_agent(
             "content": (
                 "Autonomously choose which tools to call. Start by inspecting monitor overview and recent nudge history. "
                 "Use compact memory as a cross-session prior, not as direct evidence. "
+                "Use search_history_rag when you need specific past examples or similar prior episodes. "
                 "Then query the user profile/questionnaire, posture analyses, object dwell, object snapshots, raw posture, "
                 "or baseline only if useful. "
                 "Use search tools instead of reading raw logs linearly. Avoid repeated nudges unless the issue is persistent "
@@ -1030,6 +1104,7 @@ def call_qwen_tool_agent(
                 "- Apply user settings when present: work intent, focus areas, desired notification level, and tone. "
                 "Use the questionnaire as preference context, not as proof that a nudge is needed. "
                 "Use memory to adapt thresholds and priorities when live evidence is borderline, but never nudge from memory alone. "
+                "Use history RAG as source-grounded recall, but still require live evidence before nudging. "
                 "A minimal notification level should require stronger evidence; active notification level can act on lighter signals. "
                 "Prioritize selected focus areas when several possible nudges compete.\n"
                 "- posture/slouching: nudge only if posture is meaningfully worse than baseline or repeatedly flagged.\n"

@@ -85,6 +85,20 @@ def tool_schema() -> list[dict[str, Any]]:
             "description": "Read compact cross-session memory. Contains no raw video, frames, or full sensor streams.",
             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
         },
+        {
+            "name": "search_history_rag",
+            "description": "Search privacy-safe local history using BM25 over derived records only.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 6},
+                    "lookback_days": {"type": "number", "minimum": 0, "default": 30},
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        },
     ]
 
 
@@ -126,6 +140,14 @@ class BambooMcpServer:
             return json_text(build_privacy_ledger(self.paths, self.nudge_mode))
         if name == "get_memory_profile":
             return json_text(build_memory_profile(self.paths))
+        if name == "search_history_rag":
+            return json_text(
+                self.tools.search_history_rag(
+                    query=str(arguments.get("query", "")),
+                    limit=int(arguments.get("limit", 6)),
+                    lookback_days=arguments.get("lookback_days", 30),
+                )
+            )
         raise ValueError(f"unknown tool: {name}")
 
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:

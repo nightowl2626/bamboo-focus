@@ -19,7 +19,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from baseline_calibration import (
     build_baseline as build_calibration_baseline,
@@ -564,6 +564,10 @@ class AppStore:
     def memory_profile(self) -> dict[str, Any]:
         return build_memory_profile(self.agent_paths)
 
+    def history_rag_search(self, query: str, limit: int = 6, lookback_days: float = 30) -> dict[str, Any]:
+        tools = DataTools(self.agent_paths, self.nudge_lookback_hours)
+        return tools.search_history_rag(query=query, limit=limit, lookback_days=lookback_days)
+
     def connect_info(self, port: int) -> dict[str, Any]:
         api_base = self.public_base_url or f"http://{discover_laptop_ip()}:{port}"
         return {
@@ -778,6 +782,27 @@ class AppHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "trace": self.server.store.explainability_trace()})
         elif path == "/api/memory-profile":
             self._send_json({"ok": True, "memory": self.server.store.memory_profile()})
+        elif path == "/api/history-rag":
+            query = parse_qs(urlparse(self.path).query)
+            search_query = (query.get("q") or query.get("query") or [""])[0]
+            try:
+                limit = int((query.get("limit") or ["6"])[0])
+            except ValueError:
+                limit = 6
+            try:
+                lookback_days = float((query.get("lookback_days") or ["30"])[0])
+            except ValueError:
+                lookback_days = 30
+            self._send_json(
+                {
+                    "ok": True,
+                    "history_rag": self.server.store.history_rag_search(
+                        search_query,
+                        limit=limit,
+                        lookback_days=lookback_days,
+                    ),
+                }
+            )
         elif path == "/pi/commands":
             self._send_next_command()
         elif path == "/sessions/active":

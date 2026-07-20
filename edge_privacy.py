@@ -140,6 +140,7 @@ def write_decision_trace(
     posture_context = context.get("posture_context") if isinstance(context.get("posture_context"), dict) else {}
     object_context = context.get("object_context") if isinstance(context.get("object_context"), dict) else {}
     raw_summary = context.get("raw_posture_summary") if isinstance(context.get("raw_posture_summary"), dict) else {}
+    history_rag = context.get("history_rag") if isinstance(context.get("history_rag"), dict) else {}
     memory_profile = context.get("memory_profile") if isinstance(context.get("memory_profile"), dict) else {}
     guidance = memory_profile.get("adaptive_guidance") if isinstance(memory_profile.get("adaptive_guidance"), dict) else {}
     memory_adjustments = []
@@ -182,6 +183,16 @@ def write_decision_trace(
             "adjustments": sorted(set(memory_adjustments)),
             "guidance_summary": guidance.get("summary", "No memory guidance available yet."),
             "recommendations": guidance.get("recommendations", []),
+        },
+        "history_rag": {
+            "available": bool(history_rag),
+            "query": history_rag.get("query"),
+            "match_count": len(history_rag.get("matches", [])) if isinstance(history_rag.get("matches"), list) else 0,
+            "indexed_documents": history_rag.get("indexed_documents"),
+            "privacy": history_rag.get("privacy", {
+                "raw_video_indexed": False,
+                "camera_frames_indexed": False,
+            }),
         },
         "privacy_guards": {
             "raw_video_sent_off_device": False,

@@ -135,6 +135,7 @@ This branch adds a local agent-platform layer around the existing edge loop:
 - **Decision trace:** `/api/explainability` explains the latest nudge decision, including evidence counts, tool path, local fallback status, and privacy guards.
 - **Compact agent memory:** `/api/memory-profile` stores only session-level summaries and aggregate patterns under `nudge_agent_data/`; it excludes raw video, frames, and full sensor streams.
 - **Adaptive coaching:** the nudge agent now reads compact memory as a prior. It can adjust local fallback thresholds and Qwen priorities when live evidence is borderline, but it never nudges from memory alone.
+- **History RAG:** `/api/history-rag?q=posture%20emails` runs local BM25 retrieval over privacy-safe derived history. The Qwen nudge agent can call the same `search_history_rag` tool for specific past examples.
 - **Read-only MCP server:** `bamboo_mcp_server.py` exposes local tools for agent clients without pushing data anywhere.
 
 Run the MCP server locally:
@@ -152,8 +153,20 @@ Available MCP tools include:
 - `explain_last_nudge`
 - `get_privacy_ledger`
 - `get_memory_profile`
+- `search_history_rag`
 
 The MCP server is intentionally read-only. It reads local JSON/JSONL artifacts and exposes compact edge-derived summaries, not camera frames or raw video.
+
+History RAG indexes only derived records:
+
+- session summaries
+- nudge decisions
+- decision traces
+- posture analysis summaries
+- object snapshot labels and scores
+- baseline object policy
+
+It does not index raw video, camera frames, or full calibration streams. The retriever is local BM25-style sparse retrieval, matching Qwen-Agent's lightweight RAG approach before any model call. When Qwen is enabled, retrieved snippets may be included as compact text context; raw media still stays on the edge.
 
 ### Why this fits EdgeAgent
 
