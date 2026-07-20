@@ -80,6 +80,7 @@ def build_local_context(
         "posture_context": tools.latest_posture_context(),
         "object_context": tools.latest_object_context(),
         "nudge_history": tools.recent_nudge_history(),
+        "memory_profile": tools.memory_profile() if hasattr(tools, "memory_profile") else {},
         "user_settings": user_settings or {},
     }
     if include_raw:
@@ -97,9 +98,25 @@ def local_decision_from_context(context: dict[str, Any]) -> dict[str, Any]:
     posture_context = context.get("posture_context") if isinstance(context.get("posture_context"), dict) else {}
     raw = context.get("raw_posture_summary") if isinstance(context.get("raw_posture_summary"), dict) else {}
     object_context = context.get("object_context") if isinstance(context.get("object_context"), dict) else {}
+    memory = context.get("memory_profile") if isinstance(context.get("memory_profile"), dict) else {}
+    guidance = memory.get("adaptive_guidance") if isinstance(memory.get("adaptive_guidance"), dict) else {}
+    sensitivity = guidance.get("sensitivity") if isinstance(guidance.get("sensitivity"), dict) else {}
 
     min_repeats = {"minimal": 2, "balanced": 2, "active": 1}[level]
     object_minutes = {"minimal": 60, "balanced": 30, "active": 15}[level]
+    memory_adjustments = []
+    if sensitivity.get("posture") == "higher":
+        min_repeats = max(1, min_repeats - 1)
+        memory_adjustments.append("posture threshold lowered from session memory")
+    if sensitivity.get("restlessness") == "higher":
+        min_repeats = max(1, min_repeats - 1)
+        memory_adjustments.append("restlessness threshold lowered from session memory")
+    if sensitivity.get("breaks") == "higher":
+        min_repeats = max(1, min_repeats - 1)
+        memory_adjustments.append("break threshold lowered from session memory")
+    if sensitivity.get("cleanup") == "higher":
+        object_minutes = max(10, object_minutes // 2)
+        memory_adjustments.append("cleanup dwell threshold lowered from session memory")
     if "declutter" in focus:
         object_minutes = max(10, object_minutes // 2)
 
@@ -149,6 +166,9 @@ def local_decision_from_context(context: dict[str, Any]) -> dict[str, Any]:
         "raw_events": raw_events,
         "raw_motion_mean": motion_mean,
         "raw_forward_head_mean": forward_mean,
+        "memory_session_count": memory.get("session_count", 0),
+        "memory_adjustments": memory_adjustments,
+        "memory_recommendations": guidance.get("recommendations", []),
     }
 
     candidates: list[tuple[int, dict[str, Any]]] = []
@@ -180,6 +200,7 @@ def local_decision_from_context(context: dict[str, Any]) -> dict[str, Any]:
                         "supporting_signals": [
                             f"{label} persisted across {seen_count} object snapshots",
                             f"local threshold is {object_minutes} minutes for {level} notification level",
+                            *memory_adjustments[:1],
                         ],
                         "suppress_reason": None,
                         "cooldown_key": f"object_{label}",
@@ -202,6 +223,7 @@ def local_decision_from_context(context: dict[str, Any]) -> dict[str, Any]:
                     "supporting_signals": [
                         f"slouching/forward-head hit count: {slouch_hits}",
                         f"recent forward-head mean: {forward_mean}" if forward_mean is not None else "Qwen analysis labels flagged posture",
+                        *[item for item in memory_adjustments if "posture" in item][:1],
                     ],
                     "suppress_reason": None,
                     "cooldown_key": "posture_slouching",
@@ -224,6 +246,7 @@ def local_decision_from_context(context: dict[str, Any]) -> dict[str, Any]:
                     "supporting_signals": [
                         f"restlessness hit count: {restless_hits}",
                         f"recent motion mean: {motion_mean}" if motion_mean is not None else "analysis labels flagged restlessness",
+                        *[item for item in memory_adjustments if "restlessness" in item][:1],
                     ],
                     "suppress_reason": None,
                     "cooldown_key": "behaviour_restlessness",
@@ -246,6 +269,7 @@ def local_decision_from_context(context: dict[str, Any]) -> dict[str, Any]:
                     "supporting_signals": [
                         f"too-still/hyperfocus hit count: {still_hits}",
                         f"recent motion mean: {motion_mean}" if motion_mean is not None else "analysis labels flagged stillness",
+                        *[item for item in memory_adjustments if "break" in item][:1],
                     ],
                     "suppress_reason": None,
                     "cooldown_key": "break_stillness",

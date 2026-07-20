@@ -7,6 +7,9 @@ const DEFAULT_STATE = {
   lastCalibrationKey: null,
   calibrationNotificationPending: false,
   latestSessionSummary: null,
+  latestTrace: null,
+  privacyLedger: null,
+  memoryProfile: null,
   summaryLoading: false,
   pi: {
     ip: "",
@@ -195,8 +198,14 @@ function render() {
   const objectCount = latestStatus && latestStatus.object_monitor ? latestStatus.object_monitor.snapshots : null;
   $("piStatus").textContent = postureCount || objectCount ? `${postureCount || 0} posture / ${objectCount || 0} object` : "waiting";
   $("cloudStatus").textContent = "optional sync off";
+  if (latestStatus && latestStatus.privacy) {
+    $("cloudStatus").textContent = latestStatus.privacy.cloud_attempted_for_latest_decision ? "Qwen summaries" : "local only";
+  }
   const summary = state.latestSessionSummary;
   $("latestInsight").textContent = summary && summary.paragraph ? summary.paragraph : "No session summary yet.";
+  renderPrivacy();
+  renderTrace();
+  renderMemory();
   const showLoadingInsight = !state.active && state.summaryLoading;
   const calibrationInsight = calibrationIsBusy()
     ? "Start working how you normally would while your posture and surroundings are scanned."
@@ -209,6 +218,53 @@ function render() {
   $("moreToggle").textContent = state.moreOpen ? "less ↑" : "more ↓";
   updatePanda();
   renderPiCommands();
+}
+
+function renderPrivacy() {
+  const privacy = state.privacyLedger;
+  const hardware = privacy && privacy.hardware_first ? privacy.hardware_first : {};
+  const boundaries = privacy && privacy.data_boundaries ? privacy.data_boundaries : {};
+  $("privacyVideo").textContent = hardware.raw_video_sent_off_device === false ? "never leaves edge" : "unknown";
+  $("privacyFrames").textContent = hardware.raw_frames_persisted_by_backend === false ? "not persisted" : "unknown";
+  $("privacyCloud").textContent = boundaries.cloud_attempted_for_latest_decision ? "compact summaries only" : "not used for latest decision";
+  $("privacyProvider").textContent = boundaries.cloud_provider || "local only";
+}
+
+function renderTrace() {
+  const trace = state.latestTrace;
+  const decision = trace && trace.decision ? trace.decision : {};
+  const why = trace && trace.why ? trace.why : {};
+  const edge = trace && trace.edge_evidence ? trace.edge_evidence : {};
+  const agentPath = trace && trace.agent_path ? trace.agent_path : {};
+  const memory = trace && trace.memory_influence ? trace.memory_influence : {};
+  const rag = trace && trace.history_rag ? trace.history_rag : {};
+  $("traceDecision").textContent = decision.category
+    ? `${decision.should_nudge ? "nudged" : "suppressed"}: ${decision.category}`
+    : "No decision yet.";
+  $("traceWhy").textContent = why.rationale || why.suppress_reason || "Waiting for the first nudge cycle.";
+  $("traceEvidence").textContent = trace
+    ? `${edge.posture_analysis_count || 0} posture / ${edge.object_snapshot_count || 0} object / ${edge.object_dwell_candidate_count || 0} dwell`
+    : "No edge evidence yet.";
+  $("traceMemory").textContent = trace
+    ? `${memory.used ? "used" : "not used"} (${memory.session_count || 0} sessions): ${memory.guidance_summary || "No memory guidance yet."}`
+    : "not used yet";
+  $("traceRag").textContent = trace
+    ? rag.available
+      ? `${rag.match_count || 0} matches for "${rag.query || "history"}"`
+      : "not searched in this path"
+    : "not searched yet";
+  $("tracePath").textContent = agentPath.local_fallback_used ? "local fallback/rules" : agentPath.mode ? `${agentPath.mode} agent` : "not run yet";
+}
+
+function renderMemory() {
+  const memory = state.memoryProfile;
+  if (!memory || !memory.session_count) {
+    $("memoryProfile").textContent = "No completed sessions in memory yet.";
+    return;
+  }
+  const totals = memory.totals || {};
+  const guidance = memory.adaptive_guidance || {};
+  $("memoryProfile").textContent = `${memory.session_count} sessions remembered, ${totals.nudge_count || 0} nudges, ${totals.slouching || 0} posture flags, ${totals.restless || 0} restless flags. ${guidance.summary || ""}`.trim();
 }
 
 function updatePanda() {
@@ -444,6 +500,33 @@ async function fetchLatestSummary() {
   }
 }
 
+async function refreshPrivacyLedger() {
+  try {
+    const result = await api("/api/privacy-ledger");
+    saveState({ ...state, privacyLedger: result.privacy || null });
+  } catch (_error) {
+    // Optional.
+  }
+}
+
+async function refreshExplainability() {
+  try {
+    const result = await api("/api/explainability");
+    saveState({ ...state, latestTrace: result.trace || null });
+  } catch (_error) {
+    // Optional.
+  }
+}
+
+async function refreshMemoryProfile() {
+  try {
+    const result = await api("/api/memory-profile");
+    saveState({ ...state, memoryProfile: result.memory || null });
+  } catch (_error) {
+    // Optional.
+  }
+}
+
 function notify(title, message) {
   if (!("Notification" in window) || Notification.permission !== "granted") {
     toast(`${title}: ${message}`);
@@ -554,6 +637,9 @@ async function init() {
   await refreshConnectInfo();
   await refreshCalibration().catch(() => undefined);
   await fetchLatestSummary();
+  await refreshPrivacyLedger();
+  await refreshExplainability();
+  await refreshMemoryProfile();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js").catch(() => undefined);
   }
@@ -564,6 +650,8 @@ async function init() {
   pollTimer = setInterval(() => {
     refreshStatus().catch(() => undefined);
     refreshCalibration().catch(() => undefined);
+    refreshPrivacyLedger().catch(() => undefined);
+    refreshExplainability().catch(() => undefined);
     pollNotification().catch(() => undefined);
   }, 5000);
 }

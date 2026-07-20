@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from qwen_config import qwen_model_for
+
 DEFAULT_QWEN_API_BASE = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 DEFAULT_QWEN_MODEL = "qwen-plus"
 
@@ -261,7 +263,7 @@ def call_qwen_for_session_summary(
 ) -> str:
     api_base = os.getenv("QWEN_API_BASE", DEFAULT_QWEN_API_BASE).rstrip("/")
     api_key = os.getenv("QWEN_API_KEY")
-    model = os.getenv("QWEN_MODEL", DEFAULT_QWEN_MODEL)
+    model = qwen_model_for("summary", DEFAULT_QWEN_MODEL)
     if not api_key:
         raise RuntimeError("QWEN_API_KEY is not set")
 

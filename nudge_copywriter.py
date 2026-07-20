@@ -22,6 +22,7 @@ from nudge import (
     request_json,
     utc_now,
 )
+from qwen_config import qwen_model_for
 
 
 DEFAULT_COPY = {
@@ -76,7 +77,7 @@ def call_qwen_copywriter(
 ) -> dict[str, Any]:
     api_base = os.getenv("QWEN_API_BASE", DEFAULT_QWEN_API_BASE).rstrip("/")
     api_key = os.getenv("QWEN_API_KEY")
-    model = os.getenv("QWEN_MODEL", DEFAULT_QWEN_MODEL)
+    model = qwen_model_for("copywriter", DEFAULT_QWEN_MODEL)
     if not api_key:
         raise RuntimeError("QWEN_API_KEY is not set")
 

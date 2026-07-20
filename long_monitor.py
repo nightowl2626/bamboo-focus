@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
+from qwen_config import qwen_model_for
 
 DEFAULT_TOKEN = os.getenv("FLOWPILOT_PI_TOKEN", "dev-local-token")
 DEFAULT_QWEN_API_BASE = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
@@ -302,7 +303,7 @@ def call_qwen_for_monitoring(
 ) -> dict[str, Any]:
     api_base = os.getenv("QWEN_API_BASE", DEFAULT_QWEN_API_BASE).rstrip("/")
     api_key = os.getenv("QWEN_API_KEY")
-    model = os.getenv("QWEN_MODEL", DEFAULT_QWEN_MODEL)
+    model = qwen_model_for("posture", DEFAULT_QWEN_MODEL)
     if not api_key:
         raise RuntimeError("QWEN_API_KEY is not set")
 

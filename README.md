@@ -29,10 +29,32 @@ Create a `.env` file in the repo root (already gitignored):
 ```
 QWEN_API_BASE=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 QWEN_API_KEY=sk-...your-key...
-QWEN_MODEL=qwen3.7-max
+QWEN_MODEL=qwen-plus
 ```
 
 Skip this step if you just want to try it with `--nudge-mode local` (no Qwen calls).
+
+Optional model-role split:
+
+```
+# Smart analysis path. Use your strongest model here.
+QWEN_ANALYSIS_MODEL=qwen-max
+
+# Cheaper utility path for notification copy and end-of-session summaries.
+QWEN_FAST_MODEL=qwen-flash
+```
+
+You can also override individual roles:
+
+```
+QWEN_NUDGE_MODEL=qwen-max
+QWEN_POSTURE_MODEL=qwen-max
+QWEN_CALIBRATION_MODEL=qwen-max
+QWEN_COPY_MODEL=qwen-flash
+QWEN_SUMMARY_MODEL=qwen-flash
+```
+
+The app keeps using Model Studio's OpenAI-compatible Chat Completions API. Alibaba's docs describe this as the low-friction OpenAI-compatible route, while the model guide recommends choosing across Qwen models from most capable to most cost-effective.
 
 ## 4. Run it locally (one machine, webcam)
 
@@ -95,6 +117,9 @@ Then point `webcam_edge.py` or `pi_start.py` at `http://<PUBLIC_IP>` instead of 
 | `nudge.py`, `local_fallback.py`, `nudge_copywriter.py` | The nudge decision agent (Qwen tool-calling agent), its offline rule-based fallback, and notification copywriting. |
 | `long_monitor.py`, `object_monitor.py` | Posture and object event receivers/schedulers. |
 | `session_summary.py` | End-of-session summary generation. |
+| `edge_privacy.py` | Agent-platform layer: privacy ledger, decision trace/explainability, compact memory profile. |
+| `history_rag.py` | Local BM25 retrieval over privacy-safe derived history (session summaries, decisions, traces, snapshots, baseline policy). |
+| `bamboo_mcp_server.py` | Read-only MCP server exposing the agent-platform tools to external agent clients. |
 | `web_app/` | Pomodoro PWA served by `app.py`. |
 | `bamboo_flow_launcher.py`, `BambooFlow.bat` | One-click local desktop launcher (starts `app.py`, opens the PWA). |
 | `cloud/alibaba/` | Alibaba Cloud ECS deployment: `ecs/deploy_to_ecs.ps1`, `ecs/install_bamboo_flow_ecs.sh`. |
@@ -105,13 +130,54 @@ Then point `webcam_edge.py` or `pi_start.py` at `http://<PUBLIC_IP>` instead of 
 
 No raw video crosses the Edge → Backend or Backend → Cloud boundary at any point.
 
+### Agent platform layer (EdgeAgent additions)
+
+This branch adds a local agent-platform layer around the existing edge loop, all backed by `edge_privacy.py`, `history_rag.py`, and `bamboo_mcp_server.py`:
+
+- **Privacy ledger:** `/api/privacy-ledger` records the hardware boundary, what derived JSON can leave the edge, whether Qwen was used for the latest decision, and where local runtime artifacts live.
+- **Decision trace:** `/api/explainability` explains the latest nudge decision, including evidence counts, tool path, local fallback status, and privacy guards.
+- **Compact agent memory:** `/api/memory-profile` stores only session-level summaries and aggregate patterns under `nudge_agent_data/`; it excludes raw video, frames, and full sensor streams.
+- **Adaptive coaching:** the nudge agent now reads compact memory as a prior. It can adjust local fallback thresholds and Qwen priorities when live evidence is borderline, but it never nudges from memory alone.
+- **History RAG:** `/api/history-rag?q=posture%20emails` runs local BM25 retrieval over privacy-safe derived history. The Qwen nudge agent can call the same `search_history_rag` tool for specific past examples.
+- **Read-only MCP server:** `bamboo_mcp_server.py` exposes local tools for agent clients without pushing data anywhere.
+
+Run the MCP server locally:
+
+```bash
+python bamboo_mcp_server.py --nudge-mode auto
+```
+
+Available MCP tools:
+
+- `get_current_focus_state`
+- `get_recent_posture_summary`
+- `get_object_dwell_report`
+- `get_recent_nudge_history`
+- `explain_last_nudge`
+- `get_privacy_ledger`
+- `get_memory_profile`
+- `search_history_rag`
+
+The MCP server is intentionally read-only. It reads local JSON/JSONL artifacts and exposes compact edge-derived summaries, not camera frames or raw video.
+
+History RAG indexes only derived records:
+
+- session summaries
+- nudge decisions
+- decision traces
+- posture analysis summaries
+- object snapshot labels and scores
+- baseline object policy
+
+It does not index raw video, camera frames, or full calibration streams. The retriever is local BM25-style sparse retrieval, matching Qwen-Agent's lightweight RAG approach before any model call. When Qwen is enabled, retrieved snippets may be included as compact text context; raw media still stays on the edge.
+
 ### Why this fits EdgeAgent
 
 - **Perceives via edge sensors:** pose landmarks and object detection run locally on the Pi/laptop (MediaPipe + a TFLite object detector). Only derived JSON (posture window summaries, whitelisted object labels) ever leaves the device.
 - **Reasons via cloud APIs:** the backend periodically sends posture summaries and calibration data to Qwen (Alibaba Cloud DashScope) for observational judgement, object-policy classification, nudge decisions, and notification copywriting.
 - **Acts locally:** nudges/notifications are delivered through the local Pomodoro PWA, not routed back through the cloud.
 - **Graceful degradation:** `--nudge-mode local` (see `local_fallback.py`) runs deterministic rule-based nudging with zero network/model calls, so the loop keeps working offline or on a weak connection. `auto` mode tries Qwen first and falls back to local rules on failure.
-- **Privacy-aware:** camera frames never leave the edge device. Only structured posture/object events cross the network, and every edge→backend call is bearer-token authenticated.
+- **Privacy-aware:** camera frames never leave the edge device. Only structured posture/object events cross the network, every edge→backend call is bearer-token authenticated, and the UI now exposes a privacy ledger plus per-decision trace for auditability.
 
 ## Proof of Alibaba Cloud deployment
 
